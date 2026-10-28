@@ -15,7 +15,12 @@ import {
   routeUrl,
   type Place,
 } from "./data";
-import { loadYandexMaps, type YandexSDK } from "./yandexMaps";
+import {
+  loadYandexMaps,
+  yandexFailureCode,
+  type YandexSDK,
+  type YandexFailureCode,
+} from "./yandexMaps";
 
 type Props = {
   places: Place[];
@@ -24,6 +29,7 @@ type Props = {
   theme: "light" | "dark";
   apiKey: string;
   onFallback: () => void;
+  onNetworkFailure: (code: YandexFailureCode) => void;
 };
 const coordinate = (place: Place): LngLat => {
   const [lat, lon] = locationFor(place).coordinates;
@@ -46,6 +52,7 @@ export default function YandexMapView({
   theme,
   apiKey,
   onFallback,
+  onNetworkFailure,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<YMap | null>(null);
@@ -55,6 +62,7 @@ export default function YandexMapView({
   latestTheme.current = theme;
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [failureCode, setFailureCode] = useState<YandexFailureCode>("YM-INIT");
   const [attempt, setAttempt] = useState(0);
   const current = places.find((place) => place.id === selected);
   const approximateCount = places.filter(
@@ -71,17 +79,28 @@ export default function YandexMapView({
         const instance = new api.YMap(container.current, {
           location: { bounds: boundsFor(allPlaces) },
           theme: latestTheme.current,
-          mode: "vector",
+          mode: "auto",
           zoomRange: { min: 10, max: 19 },
         });
+        map.current = instance;
         instance.addChild(new api.YMapDefaultSchemeLayer({}));
         instance.addChild(new api.YMapDefaultFeaturesLayer({}));
         sdk.current = api;
         map.current = instance;
         setReady(true);
       })
-      .catch(() => {
-        if (!cancelled) setFailed(true);
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          map.current?.destroy();
+          map.current = null;
+          const code = yandexFailureCode(error);
+          if (code === "YM-CONNECTION" || code === "YM-TIMEOUT") {
+            onNetworkFailure(code);
+            return;
+          }
+          setFailureCode(code);
+          setFailed(true);
+        }
       });
     return () => {
       cancelled = true;
@@ -169,6 +188,20 @@ export default function YandexMapView({
       {failed && (
         <div className="map-unavailable" role="status">
           <strong>Яндекс Карты не загрузились</strong>
+          <p>
+            {failureCode === "YM-ACCESS"
+              ? "Сервис карт отклонил доступ."
+              : failureCode === "YM-RENDER"
+                ? "Браузеру не удалось запустить отображение карты."
+                : failureCode === "YM-TIMEOUT"
+                  ? "Сервис карт не ответил вовремя."
+                  : failureCode === "YM-SDK"
+                    ? "Модуль карт не запустился после загрузки."
+                    : failureCode === "YM-CONNECTION"
+                      ? "Не удалось подключиться к сервису карт."
+                      : "Не удалось запустить карту."}{" "}
+            <span className="map-error-code">Код: {failureCode}</span>
+          </p>
           <p>
             Можно повторить загрузку или открыть другую карту. Каталог клубов
             остаётся доступен.

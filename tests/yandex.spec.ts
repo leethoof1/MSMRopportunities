@@ -56,6 +56,21 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
+test("SDK exposed only through its global binding still loads", async ({
+  page,
+}) => {
+  await page.route("https://api-maps.yandex.ru/v3/**", (route) =>
+    route.fulfill({
+      contentType: "application/javascript",
+      body:
+        sdkFixture + "\nconst ymaps3 = window.ymaps3; delete window.ymaps3;",
+    }),
+  );
+  await page.reload();
+  await expect(page.locator(".sdk-map")).toBeVisible();
+  await expect(page.locator(".yandex-place-marker")).toHaveCount(22);
+});
+
 test("Yandex scheme and feature layers receive filtered markers and open real cards", async ({
   page,
 }) => {
@@ -130,34 +145,26 @@ test("manual map theme survives reloading and SDK loads once", async ({
   await expect(page.locator("script[data-yandex-maps]")).toHaveCount(1);
 });
 
-test("SDK failure supports retry and explicit OSM fallback without losing clubs", async ({
+test("network failure automatically opens OSM and allows a Yandex retry", async ({
   page,
 }) => {
   await page.route("https://api-maps.yandex.ru/v3/**", (route) =>
     route.abort(),
   );
   await page.reload();
-  await expect(
-    page.getByText("Яндекс Карты не загрузились", { exact: true }),
-  ).toBeVisible();
-  await page.route("https://api-maps.yandex.ru/v3/**", (route) =>
-    route.fulfill({ contentType: "application/javascript", body: sdkFixture }),
-  );
-  await page.getByRole("button", { name: "Повторить загрузку" }).click();
-  await expect(page.locator(".sdk-map")).toBeVisible();
-  await page.route("https://api-maps.yandex.ru/v3/**", (route) =>
-    route.abort(),
-  );
-  await page.reload();
-  await expect(
-    page.getByText("Яндекс Карты не загрузились", { exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Открыть OpenStreetMap" }).click();
   await expect(page.locator(".map-shell")).toHaveAttribute(
     "data-map-provider",
     "openstreetmap",
   );
+  await expect(page.locator(".map-provider-fallback")).toContainText(
+    "YM-CONNECTION",
+  );
   await expect(page.getByRole("article")).toHaveCount(22);
+  await page.route("https://api-maps.yandex.ru/v3/**", (route) =>
+    route.fulfill({ contentType: "application/javascript", body: sdkFixture }),
+  );
+  await page.getByRole("button", { name: "Повторить Яндекс" }).click();
+  await expect(page.locator(".sdk-map")).toBeVisible();
 });
 
 test("desktop has one-click buttons and mobile keeps its native control", async ({
@@ -184,9 +191,60 @@ test("desktop has one-click buttons and mobile keeps its native control", async 
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await page
-    .locator(".site-header")
-    .screenshot({
-      path: "/tmp/msmr-theme-header-" + testInfo.project.name + ".png",
-    });
+  await page.locator(".site-header").screenshot({
+    path: "/tmp/msmr-theme-header-" + testInfo.project.name + ".png",
+  });
+});
+
+test("access denial exposes a safe code and permits a manual fallback", async ({
+  page,
+}) => {
+  await page.route("https://api-maps.yandex.ru/v3/**", (route) =>
+    route.fulfill({
+      contentType: "application/javascript",
+      body:
+        sdkFixture +
+        '\nwindow.ymaps3.ready=Promise.reject(new Error("Invalid API key"));window.ymaps3.ready.catch(()=>{});',
+    }),
+  );
+  await page.reload();
+  await expect(page.locator(".map-error-code")).toHaveText("Код: YM-ACCESS");
+  await expect(page.locator(".map-unavailable")).not.toContainText(
+    "Invalid API key",
+  );
+  await page.getByRole("button", { name: "Открыть OpenStreetMap" }).click();
+  await expect(page.locator(".map-shell")).toHaveAttribute(
+    "data-map-provider",
+    "openstreetmap",
+  );
+});
+
+test("unresponsive SDK times out into the real fallback provider", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await page.route("https://api-maps.yandex.ru/v3/**", (route) =>
+    route.fulfill({
+      contentType: "application/javascript",
+      body: "window.ymaps3={ready:new Promise(()=>{})};",
+    }),
+  );
+  await page.reload();
+  await expect(
+    page.getByText("Загружаем Яндекс Карты…", { exact: true }),
+  ).toBeVisible();
+  // The lazy-module placeholder has the same text; wait for the actual SDK request
+  // before advancing its timer.
+  await expect(page.locator("script[data-yandex-maps]")).toHaveCount(1);
+  await expect
+    .poll(() => page.evaluate(() => Boolean(window.ymaps3)))
+    .toBe(true);
+  await page.clock.fastForward(21000);
+  await expect(page.locator(".map-shell")).toHaveAttribute(
+    "data-map-provider",
+    "openstreetmap",
+  );
+  await expect(page.locator(".map-provider-fallback")).toContainText(
+    "YM-TIMEOUT",
+  );
 });
