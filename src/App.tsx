@@ -20,7 +20,6 @@ import {
   Music2,
   Palette,
   Search,
-  SlidersHorizontal,
   Sparkles,
   Users,
   Dumbbell,
@@ -96,7 +95,6 @@ export default function App() {
   const [view, setView] = useState<"map" | "list">("map");
   const [modal, setModal] = useState<"about" | "vr" | null>(null);
   const [toast, setToast] = useState("");
-  const [mobileFilters, setMobileFilters] = useState(false);
   const filtered = useMemo(
     () =>
       filterPlaces(
@@ -270,10 +268,7 @@ export default function App() {
                 </button>
               )}
             </label>
-            <div
-              className={`category-filters ${mobileFilters ? "expanded" : ""}`}
-              aria-label="Направления"
-            >
+            <div className="category-filters" aria-label="Направления">
               <button
                 className={`filter-chip ${!selectedCategories.length ? "selected all-chip" : ""}`}
                 onClick={() => setSelectedCategories([])}
@@ -300,15 +295,6 @@ export default function App() {
                 );
               })}
             </div>
-            <button
-              className="mobile-filter-button icon-button"
-              aria-label="Показать направления"
-              aria-expanded={mobileFilters}
-              onClick={() => setMobileFilters((value) => !value)}
-            >
-              <SlidersHorizontal size={20} />
-              {selectedCategories.length > 0 && <i />}
-            </button>
             <button
               className={`favorites-filter ${favoritesOnly ? "selected" : ""}`}
               aria-label="Избранное"
@@ -696,17 +682,11 @@ function PlaceDetail({
   onToast: (text: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
-  const [activityQuery, setActivityQuery] = useState("");
-  const visibleActivities = activityQuery.trim()
-    ? matchingActivities(activityQuery, place.activities)
-    : place.activities;
-  const visiblePaidActivities = activityQuery.trim()
-    ? matchingActivities(activityQuery, place.paidActivities || [])
-    : place.paidActivities || [];
+  const visibleActivities = place.activities;
+  const visiblePaidActivities = place.paidActivities || [];
   const vk = vkLinkFor(place);
   useEffect(() => {
     setCopied(false);
-    setActivityQuery("");
   }, [place.id]);
   async function share() {
     try {
@@ -837,11 +817,7 @@ function PlaceDetail({
           )}
         </div>
         <h3 className="activities-heading">
-          Что здесь есть{" "}
-          <span>
-            {visibleActivities.length}
-            {activityQuery.trim() ? ` / ${place.activities.length}` : ""}
-          </span>
+          Что здесь есть <span>{visibleActivities.length}</span>
         </h3>
         {place.activitiesNeedConfirmation && (
           <p className="activity-confirmation" role="note">
@@ -850,33 +826,7 @@ function PlaceDetail({
             ВКонтакте.
           </p>
         )}
-        {place.activities.length > 0 && (
-          <label className="club-activity-search">
-            <Search size={15} />
-            <input
-              value={activityQuery}
-              onChange={(event) => setActivityQuery(event.target.value)}
-              aria-label="Поиск занятий в этом клубе"
-              placeholder="Например, хочу петь"
-            />
-            {activityQuery && (
-              <button
-                onClick={() => setActivityQuery("")}
-                aria-label="Очистить поиск занятий"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </label>
-        )}
         <div className="activity-tags">
-          {place.activities.length > 0 && !visibleActivities.length && (
-            <p className="unconfirmed-activities" role="status">
-              {visiblePaidActivities.length
-                ? "Среди бесплатных занятий совпадений нет. Подходящие платные группы показаны ниже."
-                : "В этом клубе такого занятия пока нет в каталоге. Попробуй другой запрос."}
-            </p>
-          )}
           {!place.activities.length && (
             <p className="unconfirmed-activities">
               Список студий пока уточняется. Позвони в клуб, чтобы узнать о

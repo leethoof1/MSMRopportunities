@@ -10,6 +10,42 @@ test.beforeEach(async ({ page }) => {
 const mainSearch = (page: import("@playwright/test").Page) =>
   page.getByRole("textbox", { name: "Поиск клуба, занятия или адреса" });
 
+test("creative wishes suggest real directions and can be narrowed", async ({
+  page,
+}) => {
+  await expect(
+    page.getByRole("button", { name: "Показать направления" }),
+  ).toHaveCount(0);
+  await mainSearch(page).fill("хочу творить");
+  const suggestions = page.getByLabel("Занятия по интересам");
+  await expect(suggestions).toContainText("Творчество");
+  await expect(suggestions).toContainText("Рисование");
+  await expect(page.getByRole("article").first()).toBeVisible();
+  await suggestions.getByRole("button", { name: /Рисование/ }).click();
+  await expect(mainSearch(page)).toHaveValue("Рисование");
+  await expect(page.locator(".matched-activity").first()).toBeVisible();
+  await mainSearch(page).fill("хочу заниматься творчеством на звездной");
+  await expect(page.getByRole("article")).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "Подробнее: На Звёздной", exact: true }),
+  ).toBeVisible();
+});
+
+test("everyday sport and handicraft wishes match existing activities", async ({
+  page,
+}) => {
+  await mainSearch(page).fill("хочу мастерить своими руками");
+  await expect(page.getByLabel("Занятия по интересам")).toContainText(
+    "Рукоделие",
+  );
+  await expect(page.getByRole("article").first()).toBeVisible();
+  await mainSearch(page).fill("хочу заниматься спортом");
+  await expect(page.getByLabel("Занятия по интересам")).toContainText("Спорт");
+  await expect(
+    page.getByRole("button", { name: "Подробнее: Атлант", exact: true }),
+  ).toBeAttached();
+});
+
 async function setTheme(
   page: import("@playwright/test").Page,
   value: "light" | "dark" | "system",
@@ -86,23 +122,14 @@ test("sambo is not invented and guitar inflections work", async ({ page }) => {
   ).toHaveCount(0);
 });
 
-test("a club has an independent semantic activity search", async ({ page }) => {
+test("club cards show all activities without an internal search", async ({
+  page,
+}) => {
   await page
     .getByRole("button", { name: "Подробнее: На Звёздной", exact: true })
     .click();
   const card = page.getByRole("region", { name: "Карточка: На Звёздной" });
-  const search = card.getByRole("textbox", {
-    name: "Поиск занятий в этом клубе",
-  });
-  await search.fill("хочу петь");
-  await expect(card.locator(".activity-tags")).toHaveText(
-    "Вокальное мастерство",
-  );
-  await search.fill("дзюдо");
-  await expect(card.locator(".activity-tags")).toContainText(
-    "такого занятия пока нет",
-  );
-  await card.getByRole("button", { name: "Очистить поиск занятий" }).click();
+  await expect(card.getByRole("textbox")).toHaveCount(0);
   await expect(card.locator(".activity-tags > span")).toHaveCount(20);
 });
 
@@ -209,14 +236,8 @@ test("updated programmes keep paid children's judo separate from free results", 
     .click();
   const card = page.getByRole("region", { name: "Карточка: Взлёт" });
   await expect(card.locator(".activity-tags")).not.toContainText("Дзюдо");
-  await card
-    .getByRole("textbox", { name: "Поиск занятий в этом клубе" })
-    .fill("дзюдо");
   await expect(card.getByLabel("Платные занятия")).toContainText(
     "Дзюдо · 4–13 лет",
-  );
-  await expect(card.locator(".activity-tags")).toContainText(
-    "Среди бесплатных занятий совпадений нет",
   );
 });
 

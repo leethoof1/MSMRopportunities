@@ -341,9 +341,7 @@ h1 > span:first-of-type {
   padding: 1px 5px;
   border-radius: 5px;
 }
-.mobile-filter-button {
-  display: none !important;
-}
+
 .workspace {
   display: flex;
   height: 640px;
@@ -1921,7 +1919,7 @@ h1 > span:first-of-type {
     gap: 8px;
   }
   .search-input {
-    width: calc(100% - 88px);
+    width: calc(100% - 40px);
     min-width: 0;
     height: 40px;
     gap: 7px;
@@ -1945,21 +1943,7 @@ h1 > span:first-of-type {
     top: 0;
     right: -1px;
   }
-  .mobile-filter-button {
-    display: flex !important;
-    width: 32px;
-    height: 36px;
-    position: relative;
-  }
-  .mobile-filter-button i {
-    position: absolute;
-    background: var(--purple);
-    height: 6px;
-    width: 6px;
-    border-radius: 50%;
-    right: 3px;
-    top: 3px;
-  }
+
   .category-filters {
     flex-wrap: nowrap;
     overflow: auto;
@@ -1977,9 +1961,6 @@ h1 > span:first-of-type {
   .filter-chip svg {
     width: 12px;
     height: 12px;
-  }
-  .category-filters.expanded {
-    flex-wrap: wrap;
   }
   .workspace {
     height: auto;
