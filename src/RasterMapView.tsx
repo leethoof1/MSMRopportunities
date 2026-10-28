@@ -7,7 +7,13 @@ import {
   Minus,
   Plus,
   RefreshCw,
+  Layers,
 } from "lucide-react";
+import {
+  yandexTileTemplate,
+  type TileProvider,
+  type YandexMapType,
+} from "./mapTiles";
 import {
   categories,
   locationFor,
@@ -20,15 +26,34 @@ type Props = {
   places: Place[];
   selected: string | null;
   onSelect: (id: string) => void;
+  provider: TileProvider;
+  apiKey?: string;
+  theme: "light" | "dark";
+  onUnavailable: () => void;
 };
 type MapStatus = "loading" | "ready" | "error";
 
-export default function MapView({ places, selected, onSelect }: Props) {
+export default function RasterMapView({
+  places,
+  selected,
+  onSelect,
+  provider,
+  apiKey,
+  theme,
+  onUnavailable,
+}: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const markers = useRef<L.LayerGroup | null>(null);
   const tiles = useRef<L.TileLayer | null>(null);
   const [status, setStatus] = useState<MapStatus>("loading");
+  const [maptype, setMaptype] = useState<YandexMapType>("map");
+  const [reload, setReload] = useState(0);
+  const unavailable = useRef(onUnavailable);
+  unavailable.current = onUnavailable;
+  const [mapHref, setMapHref] = useState(
+    "https://yandex.ru/maps/2/saint-petersburg/",
+  );
   const current = places.find((place) => place.id === selected);
   const approximateCount = places.filter(
     (place) => !locationFor(place).resolved,
@@ -40,7 +65,7 @@ export default function MapView({ places, selected, onSelect }: Props) {
       zoomControl: false,
       attributionControl: false,
       minZoom: 10,
-      maxZoom: 19,
+      maxZoom: 20,
       scrollWheelZoom: true,
     });
     instance.fitBounds(
@@ -50,59 +75,96 @@ export default function MapView({ places, selected, onSelect }: Props) {
     L.control
       .attribution({ prefix: false, position: "bottomright" })
       .addTo(instance);
-    const layer = L.tileLayer(
-      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-      {
-        maxZoom: 19,
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>',
-      },
-    );
-    let loaded = 0;
-    let failures = 0;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const clearTimer = () => {
-      if (timer) clearTimeout(timer);
-    };
-    layer.on("loading", () => {
-      clearTimer();
-      loaded = 0;
-      failures = 0;
-      setStatus((previous) => (previous === "ready" ? "ready" : "loading"));
-      timer = setTimeout(() => {
-        if (!loaded) setStatus("error");
-      }, 15000);
-    });
-    layer.on("tileload", () => {
-      loaded++;
-      clearTimer();
-      setStatus("ready");
-    });
-    layer.on("tileerror", () => {
-      failures++;
-      if (failures >= 3 && !loaded) {
-        clearTimer();
-        setStatus("error");
-      }
-    });
-    layer.on("load", () => {
-      if (loaded) setStatus("ready");
-      else if (failures) setStatus("error");
-    });
-    layer.addTo(instance);
     map.current = instance;
-    tiles.current = layer;
     markers.current = L.layerGroup().addTo(instance);
+    const updateMapLink = () => {
+      const center = instance.getCenter();
+      setMapHref(
+        `https://yandex.ru/maps/?ll=${center.lng.toFixed(6)}%2C${center.lat.toFixed(6)}&z=${instance.getZoom()}`,
+      );
+    };
+    instance.on("moveend zoomend", updateMapLink);
+    updateMapLink();
     const observer = new ResizeObserver(() => instance.invalidateSize());
     observer.observe(container.current);
     return () => {
-      clearTimer();
       observer.disconnect();
       instance.remove();
       map.current = null;
       tiles.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const instance = map.current;
+    if (!instance) return;
+    setStatus("loading");
+    const yandex = provider === "yandex-tiles";
+    instance.setMaxZoom(yandex ? 20 : 19);
+    const layer = L.tileLayer(
+      yandex
+        ? yandexTileTemplate(apiKey || "", maptype)
+        : "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      {
+        maxZoom: yandex ? 20 : 19,
+        tileSize: 256,
+        attribution: yandex
+          ? '&copy; <a href="https://yandex.ru/maps/" target="_blank" rel="noreferrer">Яндекс</a>'
+          : '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>',
+      },
+    );
+    let loaded = 0;
+    let failures = 0;
+    let disposed = false;
+    let reported = false;
+    const failed = () => {
+      if (disposed || reported) return;
+      reported = true;
+      setStatus("error");
+      if (yandex) unavailable.current();
+    };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const clearTimer = () => {
+      if (timer) clearTimeout(timer);
+    };
+    layer.on("loading", () => {
+      if (disposed) return;
+      clearTimer();
+      loaded = 0;
+      failures = 0;
+      setStatus((previous) => (previous === "ready" ? "ready" : "loading"));
+      timer = setTimeout(() => {
+        if (!loaded) failed();
+      }, 15000);
+    });
+    layer.on("tileload", () => {
+      if (disposed) return;
+      loaded++;
+      clearTimer();
+      setStatus("ready");
+    });
+    layer.on("tileerror", () => {
+      if (disposed) return;
+      failures++;
+      if (failures >= 3 && !loaded) {
+        clearTimer();
+        failed();
+      }
+    });
+    layer.on("load", () => {
+      if (disposed) return;
+      if (loaded) setStatus("ready");
+      else if (failures) failed();
+    });
+    layer.addTo(instance);
+    tiles.current = layer;
+    return () => {
+      disposed = true;
+      clearTimer();
+      layer.remove();
+      if (tiles.current === layer) tiles.current = null;
+    };
+  }, [provider, apiKey, maptype, reload]);
 
   useEffect(() => {
     if (!map.current || !markers.current) return;
@@ -158,12 +220,15 @@ export default function MapView({ places, selected, onSelect }: Props) {
       );
   }
   function retry() {
-    setStatus("loading");
-    tiles.current?.redraw();
+    setReload((value) => value + 1);
   }
 
   return (
-    <div className="map-shell" data-map-provider="openstreetmap">
+    <div
+      className="map-shell"
+      data-map-provider={provider}
+      data-map-theme={theme}
+    >
       <div
         className="map-canvas"
         ref={container}
@@ -174,18 +239,49 @@ export default function MapView({ places, selected, onSelect }: Props) {
         <span>Московский район</span>
         <small>Санкт-Петербург</small>
       </div>
-      <a
-        className="map-layer"
-        href={
-          current
-            ? routeUrl(current)
-            : "https://yandex.ru/maps/2/saint-petersburg/?ll=30.329%2C59.8565&z=12"
-        }
-        target="_blank"
-        rel="noreferrer"
-      >
-        Яндекс Карты <ExternalLink size={14} />
-      </a>
+      {provider === "yandex-tiles" ? (
+        <label className="map-tiles-style">
+          <Layers size={15} />
+          <select
+            aria-label="Вид карты Яндекса"
+            value={maptype}
+            onChange={(event) =>
+              setMaptype(event.target.value as YandexMapType)
+            }
+          >
+            <option value="map">Схема</option>
+            <option value="admin">Административная</option>
+            <option value="transit">Транспорт</option>
+          </select>
+        </label>
+      ) : (
+        <a
+          className="map-layer"
+          href={
+            current
+              ? routeUrl(current)
+              : "https://yandex.ru/maps/2/saint-petersburg/?ll=30.329%2C59.8565&z=12"
+          }
+          target="_blank"
+          rel="noreferrer"
+        >
+          Яндекс Карты <ExternalLink size={14} />
+        </a>
+      )}
+      {provider === "yandex-tiles" && (
+        <a
+          className="yandex-tiles-brand"
+          href={mapHref}
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Яндекс Карты — открыть текущий участок"
+        >
+          <img
+            src={`${import.meta.env.BASE_URL}yandex/logo.svg`}
+            alt="Яндекс"
+          />
+        </a>
+      )}
       {status === "loading" && (
         <div className="map-loading" role="status">
           Загружаем карту…
