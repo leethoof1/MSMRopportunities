@@ -7,13 +7,8 @@ import {
   Minus,
   Plus,
   RefreshCw,
-  Layers,
 } from "lucide-react";
-import {
-  yandexTileTemplate,
-  type TileProvider,
-  type YandexMapType,
-} from "./mapTiles";
+import { yandexTileTemplate, type TileProvider } from "./mapTiles";
 import {
   categories,
   locationFor,
@@ -47,7 +42,6 @@ export default function RasterMapView({
   const markers = useRef<L.LayerGroup | null>(null);
   const tiles = useRef<L.TileLayer | null>(null);
   const [status, setStatus] = useState<MapStatus>("loading");
-  const [maptype, setMaptype] = useState<YandexMapType>("map");
   const [reload, setReload] = useState(0);
   const unavailable = useRef(onUnavailable);
   unavailable.current = onUnavailable;
@@ -55,9 +49,6 @@ export default function RasterMapView({
     "https://yandex.ru/maps/2/saint-petersburg/",
   );
   const current = places.find((place) => place.id === selected);
-  const approximateCount = places.filter(
-    (place) => !locationFor(place).resolved,
-  ).length;
 
   useEffect(() => {
     if (!container.current) return;
@@ -103,7 +94,7 @@ export default function RasterMapView({
     instance.setMaxZoom(yandex ? 20 : 19);
     const layer = L.tileLayer(
       yandex
-        ? yandexTileTemplate(apiKey || "", maptype)
+        ? yandexTileTemplate(apiKey || "", "map")
         : "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
       {
         maxZoom: yandex ? 20 : 19,
@@ -164,7 +155,7 @@ export default function RasterMapView({
       layer.remove();
       if (tiles.current === layer) tiles.current = null;
     };
-  }, [provider, apiKey, maptype, reload]);
+  }, [provider, apiKey, reload]);
 
   useEffect(() => {
     if (!map.current || !markers.current) return;
@@ -239,22 +230,7 @@ export default function RasterMapView({
         <span>Московский район</span>
         <small>Санкт-Петербург</small>
       </div>
-      {provider === "yandex-tiles" ? (
-        <label className="map-tiles-style">
-          <Layers size={15} />
-          <select
-            aria-label="Вид карты Яндекса"
-            value={maptype}
-            onChange={(event) =>
-              setMaptype(event.target.value as YandexMapType)
-            }
-          >
-            <option value="map">Схема</option>
-            <option value="admin">Административная</option>
-            <option value="transit">Транспорт</option>
-          </select>
-        </label>
-      ) : (
+      {provider !== "yandex-tiles" && (
         <a
           className="map-layer"
           href={
@@ -334,11 +310,6 @@ export default function RasterMapView({
         >
           <LocateFixed size={20} />
         </button>
-      </div>
-      <div className="map-coordinate-note">
-        {approximateCount
-          ? `Положение ${approximateCount} ${approximateCount === 1 ? "места" : "мест"} уточняется`
-          : "Метки по сверенным адресам"}
       </div>
     </div>
   );

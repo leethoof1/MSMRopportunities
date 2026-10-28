@@ -14,10 +14,7 @@ test("loads the complete catalogue and shows source limitations", async ({
     page.getByRole("heading", { name: "22 пространства" }),
   ).toBeVisible();
   await expect(page.getByRole("article")).toHaveCount(22);
-  await expect(page.locator(".map-coordinate-note")).toBeVisible();
-  await expect(page.locator(".map-coordinate-note")).toHaveText(
-    "Метки по сверенным адресам",
-  );
+  await expect(page.locator(".map-coordinate-note")).toHaveCount(0);
   await expect(page.locator(".place-pin")).toHaveCount(22);
   await expect(page.locator(".place-pin.is-approximate")).toHaveCount(0);
   await expect(page.locator(".leaflet-image-layer")).toHaveCount(0);

@@ -93,24 +93,13 @@ test("filtered clubs retain clickable markers and correct cards", async ({
   ).toHaveAttribute("href", "https://vk.ru/cmiprostor");
 });
 
-test("administrative map changes the documented maptype only", async ({
+test("map keeps the standard scheme without a style selector", async ({
   page,
 }) => {
-  const requests: string[] = [];
-  page.on("request", (request) => {
-    if (request.url().startsWith("https://tiles.api-maps.yandex.ru/"))
-      requests.push(request.url());
-  });
-  await page
-    .getByRole("combobox", { name: "Вид карты Яндекса" })
-    .selectOption("admin");
-  await expect
-    .poll(() =>
-      requests.some(
-        (value) => new URL(value).searchParams.get("maptype") === "admin",
-      ),
-    )
-    .toBe(true);
+  await expect(
+    page.getByRole("combobox", { name: "Вид карты Яндекса" }),
+  ).toHaveCount(0);
+  await expect(page.locator(".map-coordinate-note")).toHaveCount(0);
   await expect(page.locator(".leaflet-marker-icon")).toHaveCount(22);
   await expect(page.locator(".map-shell")).toHaveAttribute(
     "data-map-provider",
