@@ -1,6 +1,9 @@
 import { test, expect } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
+  await page.route("https://tile.openstreetmap.org/**", (route) =>
+    route.abort(),
+  );
   await page.goto("/");
 });
 
@@ -11,7 +14,12 @@ test("loads the complete catalogue and shows source limitations", async ({
     page.getByRole("heading", { name: "23 пространства" }),
   ).toBeVisible();
   await expect(page.getByRole("article")).toHaveCount(23);
-  await expect(page.getByText("Метки предварительные")).toBeVisible();
+  await expect(page.locator(".map-coordinate-note")).toBeVisible();
+  await expect(page.locator(".leaflet-image-layer")).toHaveCount(0);
+  await expect(page.locator(".map-shell")).toHaveAttribute(
+    "data-map-provider",
+    "openstreetmap",
+  );
   await expect(
     page.getByText("Данные на 29.07.2025.", { exact: false }),
   ).toBeVisible();
@@ -116,6 +124,21 @@ test("place details expose real activities, phone, address route and shareable U
 test("a map marker opens its corresponding place after fitting the results", async ({
   page,
 }) => {
+  // Stub image transport for this interaction test. The separate failure test
+  // checks real tile URLs, retry and attribution; live imagery needs network access.
+  await page.route("https://tile.openstreetmap.org/**", (route) =>
+    route.fulfill({
+      contentType: "image/png",
+      body: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    }),
+  );
+  await page.reload();
+  await expect(
+    page.getByText("Карта не загрузилась", { exact: true }),
+  ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Показать все найденные места" })
     .click();
@@ -150,25 +173,39 @@ test("list view and map-only source entry remain usable", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("OSM failure offers the usable local schematic", async ({ page }) => {
-  await page.route("https://tile.openstreetmap.org/**", (route) =>
-    route.abort(),
-  );
-  await page
-    .getByRole("button", { name: "Переключить схему и карту OpenStreetMap" })
-    .click();
+test("real OSM is requested immediately and failure preserves the catalogue", async ({
+  page,
+}) => {
+  let requests = 0;
+  await page.route("https://tile.openstreetmap.org/**", (route) => {
+    requests++;
+    return route.abort();
+  });
+  await page.reload();
   await expect(
-    page.getByText("Картографический сервис недоступен.", { exact: false }),
+    page.getByText("Карта не загрузилась", { exact: true }),
   ).toBeVisible();
+  expect(requests).toBeGreaterThan(0);
+  await expect(page.locator(".leaflet-image-layer")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Открыть схему" })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.getByRole("link", { name: "OpenStreetMap contributors" }),
+  ).toBeVisible();
+  await expect(page.getByRole("article")).toHaveCount(23);
+  await expect(
+    page.getByRole("link", { name: "Открыть в Яндексе" }),
+  ).toHaveAttribute("href", /yandex\.ru/);
+  const beforeRetry = requests;
+  await page.getByRole("button", { name: "Повторить загрузку" }).click();
+  await expect.poll(() => requests).toBeGreaterThan(beforeRetry);
   await page
-    .getByRole("button", { name: "Открыть схему", exact: true })
+    .getByRole("button", { name: "Подробнее: На Звёздной", exact: true })
     .click();
   await expect(
-    page.getByRole("button", {
-      name: "Переключить схему и карту OpenStreetMap",
-    }),
-  ).toHaveText("Схема района");
-  await expect(page.locator(".leaflet-marker-icon")).toHaveCount(23);
+    page.getByRole("region", { name: "Карточка: На Звёздной" }),
+  ).toBeVisible();
 });
 
 test("VR catalogue renders and supports accessible card selection", async ({
