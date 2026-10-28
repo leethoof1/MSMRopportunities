@@ -26,7 +26,10 @@ test("loads the complete catalogue and shows source limitations", async ({
     "openstreetmap",
   );
   await expect(
-    page.getByText("статья 29.07.2025.", { exact: false }),
+    page.getByText(
+      "Точное расписание уточняй у клубов — контакты прикреплены в карточках.",
+      { exact: true },
+    ),
   ).toBeVisible();
   expect(
     await page.evaluate(

@@ -235,7 +235,6 @@ export default function App() {
               Открой места рядом, где начинается
               <br className="desktop-br" /> что-то большее.
             </p>
-            <p className="hero-cta">Найди своё</p>
           </div>
           <div className="hero-stamp" aria-hidden="true">
             <span>В РАЙОНЕ</span>
@@ -439,8 +438,8 @@ export default function App() {
               <div className="source-note">
                 <Info size={14} />
                 <span>
-                  Обновлённый список центра и статья {SOURCE_DATE}. Расписание
-                  уточняй у клуба.
+                  Точное расписание уточняй у клубов — контакты прикреплены в
+                  карточках.
                 </span>
               </div>
             </aside>
@@ -452,18 +451,6 @@ export default function App() {
                 selected={selectedId}
                 onSelect={selectPlace}
               />
-              {!selected && (
-                <div className="map-invite">
-                  <span className="invite-spark" aria-hidden="true">
-                    ✳︎
-                  </span>
-                  <div>
-                    <strong>Большие идеи начинаются рядом</strong>
-                    <p>Нажми на метку и познакомься с местом</p>
-                  </div>
-                  <ArrowUpRight size={23} />
-                </div>
-              )}
               {selected && (
                 <PlaceDetail
                   place={selected}
@@ -547,14 +534,6 @@ export default function App() {
                   </a>
                 </div>
               ))}
-            </div>
-            <div className="notice">
-              <Info size={19} />
-              <p>
-                Карта района доступна через Яндекс Карты или резервную
-                OpenStreetMap. Перед поездкой проверяй адрес и расписание у
-                организаторов.
-              </p>
             </div>
             <h3>Скоро — внутри пространств</h3>
             <p>

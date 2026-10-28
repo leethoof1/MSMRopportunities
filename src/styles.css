@@ -204,15 +204,7 @@ h1 > span:first-of-type {
   padding-bottom: 7px;
   color: #777b74;
 }
-.hero-cta {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-top: 17px;
-  color: #383d34;
-  font-size: 12px;
-  font-weight: 750;
-}
+
 .hero-stamp {
   width: 123px;
   height: 123px;
@@ -1898,35 +1890,28 @@ h1 > span:first-of-type {
     top: 21px;
   }
   .hero-description {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    justify-content: space-between;
-    margin-top: 17px;
-    padding: 0;
-    line-height: 1.8;
-    font-size: 10px;
+    display: none;
   }
+  .hero-stamp {
+    display: flex;
+    width: 88px;
+    height: 88px;
+    margin: 18px 8px 0 auto;
+  }
+  .hero-stamp > span {
+    font-size: 7px;
+  }
+  .hero-stamp strong {
+    font-size: 18px;
+  }
+
   .desktop-br {
     display: none;
   }
   .hero-description p {
     max-width: 235px;
   }
-  .hero-cta {
-    font-size: 9px;
-    gap: 7px;
-    flex-shrink: 0;
-    margin: 0;
-    align-self: flex-end;
-  }
-  .hero-cta span {
-    height: 26px;
-    width: 26px;
-  }
-  .hero-cta svg {
-    height: 14px;
-  }
+
   .explorer {
     padding: 0 12px;
   }
