@@ -338,7 +338,7 @@ export default function RasterMapView({
       <div className="map-coordinate-note">
         {approximateCount
           ? `Положение ${approximateCount} ${approximateCount === 1 ? "места" : "мест"} уточняется`
-          : "Метки по адресам OpenStreetMap"}
+          : "Метки по сверенным адресам"}
       </div>
     </div>
   );

@@ -822,7 +822,7 @@ function PlaceDetail({
               {place.address}
               <small>
                 {locationFor(place).resolved
-                  ? "Санкт-Петербург · точка по адресу OpenStreetMap"
+                  ? `Санкт-Петербург · точка по адресу · ${locationFor(place).source}`
                   : "Санкт-Петербург · положение метки уточняется"}
               </small>
             </span>

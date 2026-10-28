@@ -49,12 +49,12 @@ export const organizations = {
 
 type GeocodedLocation = {
   address: string;
-  coordinates: [number, number];
+  coordinates: number[];
   matchedAddress: string;
   source: string;
   retrievedAt: string;
 };
-const resolvedLocations = geocodedPlaces as Record<string, GeocodedLocation>;
+const resolvedLocations: Record<string, GeocodedLocation> = geocodedPlaces;
 
 export function locationFor(place: Place) {
   const candidate = resolvedLocations[place.id];
@@ -68,7 +68,10 @@ export function locationFor(place: Place) {
     candidate.coordinates[1] < 30.46;
   return valid
     ? {
-        coordinates: candidate.coordinates,
+        coordinates: [candidate.coordinates[0], candidate.coordinates[1]] as [
+          number,
+          number,
+        ],
         resolved: true,
         source: candidate.source,
       }

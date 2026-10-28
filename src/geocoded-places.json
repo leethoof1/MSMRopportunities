@@ -1,1 +1,181 @@
-{}
+{
+  "zvezdnaya": {
+    "address": "Звёздная улица, 16А",
+    "coordinates": [59.8357194, 30.3647458],
+    "matchedAddress": "16А, Звёздная улица, округ Гагаринское, Санкт-Петербург, Северо-Западный федеральный округ, 196142, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/30700780",
+    "retrievedAt": "2026-10-28"
+  },
+  "pulkovec": {
+    "address": "5-й Предпортовый проезд, 8, корп. 5, лит. А",
+    "coordinates": [59.8362239, 30.3151203],
+    "matchedAddress": "8 к5, 5-й Предпортовый проезд, округ Пулковский меридиан, Санкт-Петербург, Северо-Западный федеральный округ, 196240, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/51665882",
+    "retrievedAt": "2026-10-28"
+  },
+  "sputnik": {
+    "address": "Благодатная улица, 51",
+    "coordinates": [59.8756659, 30.3298475],
+    "matchedAddress": "51, Благодатная улица, Ближняя Рогатка, округ Московская застава, Санкт-Петербург, Северо-Западный федеральный округ, 196105, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/47660351",
+    "retrievedAt": "2026-10-28"
+  },
+  "prosto": {
+    "address": "Московский проспект, 151А",
+    "coordinates": [59.8730349, 30.3177166],
+    "matchedAddress": "151А, Московский проспект, Ближняя Рогатка, округ Московская застава, Санкт-Петербург, Северо-Западный федеральный округ, 196128, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/47660771",
+    "retrievedAt": "2026-10-28"
+  },
+  "patriot": {
+    "address": "Краснопутиловская улица, 56А",
+    "coordinates": [59.857123, 30.2968176],
+    "matchedAddress": "56А, Краснопутиловская улица, Предпортовая, округ Новоизмайловское, Санкт-Петербург, Северо-Западный федеральный округ, 196247, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/31005766",
+    "retrievedAt": "2026-10-28"
+  },
+  "avrora": {
+    "address": "Варшавская улица, 47, корп. 2",
+    "coordinates": [59.8558811, 30.3117267],
+    "matchedAddress": "47 к2, Варшавская улица, Предпортовая, округ Новоизмайловское, Санкт-Петербург, Северо-Западный федеральный округ, 196191, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/31006363",
+    "retrievedAt": "2026-10-28"
+  },
+  "atlant": {
+    "address": "Улица Фрунзе, 4",
+    "coordinates": [59.8619374, 30.3165129],
+    "matchedAddress": "4, улица Фрунзе, округ Пулковский меридиан, Санкт-Петербург, Северо-Западный федеральный округ, 196191, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/29171617",
+    "retrievedAt": "2026-10-28"
+  },
+  "vertikal": {
+    "address": "Улица Пилотов, 25",
+    "coordinates": [59.813728, 30.2969623],
+    "matchedAddress": "25, улица Пилотов, Авиагородок, округ Пулковский меридиан, Санкт-Петербург, Северо-Западный федеральный округ, 196210, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/76167187",
+    "retrievedAt": "2026-10-28"
+  },
+  "vzlet": {
+    "address": "Улица Орджоникидзе, 61",
+    "coordinates": [59.8421115, 30.3633754],
+    "matchedAddress": "61, улица Орджоникидзе, округ Гагаринское, Санкт-Петербург, Северо-Западный федеральный округ, 141980, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/30700831",
+    "retrievedAt": "2026-10-28"
+  },
+  "vostok": {
+    "address": "Кубинская улица, 44",
+    "coordinates": [59.8601331, 30.2964266],
+    "matchedAddress": "44, Кубинская улица, Предпортовая, округ Новоизмайловское, Санкт-Петербург, Северо-Западный федеральный округ, 196247, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/31005721",
+    "retrievedAt": "2026-10-28"
+  },
+  "kometa": {
+    "address": "Благодатная улица, 38",
+    "coordinates": [59.8765119, 30.3317253],
+    "matchedAddress": "38, Благодатная улица, Ближняя Рогатка, округ Московская застава, Санкт-Петербург, Северо-Западный федеральный округ, 196105, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/33277615",
+    "retrievedAt": "2026-10-28"
+  },
+  "kosmonavt": {
+    "address": "Проспект Космонавтов, 29, корп. 7",
+    "coordinates": [59.8558519, 30.3460973],
+    "matchedAddress": "29 к7, проспект Космонавтов, округ Гагаринское, Санкт-Петербург, Северо-Западный федеральный округ, 196244, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/30825977",
+    "retrievedAt": "2026-10-28"
+  },
+  "luch": {
+    "address": "Московский проспект, 216А",
+    "coordinates": [59.84845, 30.3234222],
+    "matchedAddress": "216А, Московский проспект, Средняя Рогатка, округ Звёздное, Санкт-Петербург, Северо-Западный федеральный округ, 196066, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/30699625",
+    "retrievedAt": "2026-10-28"
+  },
+  "molodezhny": {
+    "address": "Улица Ленсовета, 10",
+    "coordinates": [59.8589844, 30.3299625],
+    "matchedAddress": "10, улица Ленсовета, округ Московская застава, Санкт-Петербург, Северо-Западный федеральный округ, 196135, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/47641583",
+    "retrievedAt": "2026-10-28"
+  },
+  "nadezhda": {
+    "address": "Авиационная улица, 9",
+    "coordinates": [59.8552203, 30.3233169],
+    "matchedAddress": "9, Авиационная улица, Средняя Рогатка, округ Звёздное, Санкт-Петербург, Северо-Западный федеральный округ, 196066, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/47640574",
+    "retrievedAt": "2026-10-28"
+  },
+  "neva": {
+    "address": "Смоленская улица, 1",
+    "coordinates": [59.9035515, 30.3198857],
+    "matchedAddress": "1, Смоленская улица, Ближняя Рогатка, округ Московская застава, Санкт-Петербург, Северо-Западный федеральный округ, 196084, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/relation/537092",
+    "retrievedAt": "2026-10-28"
+  },
+  "rubin": {
+    "address": "Витебский проспект, 41, корп. 1",
+    "coordinates": [59.8558829, 30.3602507],
+    "matchedAddress": "41 к1, Витебский проспект, округ Гагаринское, Санкт-Петербург, Северо-Западный федеральный округ, 196244, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/30824768",
+    "retrievedAt": "2026-10-28"
+  },
+  "start": {
+    "address": "Московский проспект, 153",
+    "coordinates": [59.8724086, 30.3196019],
+    "matchedAddress": "153, Московский проспект, округ Московская застава, Санкт-Петербург, Северо-Западный федеральный округ, 196128, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/47660777",
+    "retrievedAt": "2026-10-28"
+  },
+  "yunost": {
+    "address": "Московское шоссе, 14, корп. 1",
+    "coordinates": [59.8368913, 30.3341635],
+    "matchedAddress": "14 к1, Московское шоссе, Средняя Рогатка, округ Звёздное, Санкт-Петербург, Северо-Западный федеральный округ, 196153, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/145943589",
+    "retrievedAt": "2026-10-28"
+  },
+  "romantiki": {
+    "address": "Ленинский проспект, 158, корп. 2",
+    "coordinates": [59.853216, 30.2992693],
+    "matchedAddress": "158 к2 литА, Ленинский проспект, Предпортовая, округ Новоизмайловское, Санкт-Петербург, Северо-Западный федеральный округ, 196247, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/31007163",
+    "retrievedAt": "2026-10-28",
+    "reviewNote": "Проверено вручную: корпус 2 в OSM указан как 158 к2 литА."
+  },
+  "kosmos": {
+    "address": "Московский проспект, 174А",
+    "coordinates": [59.8769204, 30.3223321],
+    "matchedAddress": "Творческое пространство \"Космос\", 174, Московский проспект, Ближняя Рогатка, округ Московская застава, Санкт-Петербург, Северо-Западный федеральный округ, 196128, Россия",
+    "source": "OpenStreetMap / Nominatim",
+    "sourceUrl": "https://www.openstreetmap.org/way/53357426",
+    "retrievedAt": "2026-10-28",
+    "reviewNote": "Проверено вручную: в OSM дом 174 без буквы А; совпадают название клуба, телефон +78124173436 и группа kosmos_pmk."
+  },
+  "oktyabr": {
+    "address": "Пулковская улица, 11, корп. 1",
+    "coordinates": [59.838449, 30.348067],
+    "matchedAddress": "Saint Petersburg, Pulkovskaya Street, 11к1",
+    "source": "Яндекс Карты",
+    "sourceUrl": "https://yandex.ru/maps/org/molodezhny_klub_oktyabr/1001846110/",
+    "retrievedAt": "2026-10-28",
+    "reviewNote": "Проверено вручную: совпадают название, адрес с корпусом 1 и телефон +78124173231. В OSM найден только дом 11 без корпуса; его координаты не принимались автоматически."
+  }
+}

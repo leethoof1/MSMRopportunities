@@ -15,6 +15,11 @@ test("loads the complete catalogue and shows source limitations", async ({
   ).toBeVisible();
   await expect(page.getByRole("article")).toHaveCount(22);
   await expect(page.locator(".map-coordinate-note")).toBeVisible();
+  await expect(page.locator(".map-coordinate-note")).toHaveText(
+    "Метки по сверенным адресам",
+  );
+  await expect(page.locator(".place-pin")).toHaveCount(22);
+  await expect(page.locator(".place-pin.is-approximate")).toHaveCount(0);
   await expect(page.locator(".leaflet-image-layer")).toHaveCount(0);
   await expect(page.locator(".map-shell")).toHaveAttribute(
     "data-map-provider",
@@ -28,6 +33,32 @@ test("loads the complete catalogue and shows source limitations", async ({
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+});
+
+test("reviewed club locations retain the correct source in their details", async ({
+  page,
+}) => {
+  for (const [id, name, source] of [
+    ["kosmos", "Космос", "OpenStreetMap / Nominatim"],
+    ["romantiki", "Романтики", "OpenStreetMap / Nominatim"],
+    ["oktyabr", "Октябрь", "Яндекс Карты"],
+  ]) {
+    await page.goto(`/?place=${id}`);
+    const dialog = page.getByRole("region", { name: `Карточка: ${name}` });
+    await expect(
+      dialog.getByRole("heading", { name, exact: true }),
+    ).toBeVisible();
+    await expect(
+      dialog.getByText(`Санкт-Петербург · точка по адресу · ${source}`, {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      dialog.getByText("Санкт-Петербург · положение метки уточняется", {
+        exact: true,
+      }),
+    ).toHaveCount(0);
+  }
 });
 
 test("searches activities, normalizes ё and combines category filters", async ({
