@@ -18,7 +18,7 @@ export async function checkTiles(key, request = fetch) {
     .replace("{z}", String(zoom));
   try {
     const response = await request(url, {
-      headers: { Referer: "https://leethoof1.github.io/" },
+      headers: { Referer: "https://molmoskovsky.ru/" },
       redirect: "error",
       signal: AbortSignal.timeout(15000),
     });
