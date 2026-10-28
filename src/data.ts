@@ -1,3 +1,5 @@
+import geocodedPlaces from "./geocoded-places.json" with { type: "json" };
+
 export type Category = "creative" | "sport" | "music" | "growth" | "community";
 export type Place = {
   id: string;
@@ -20,6 +22,38 @@ export type Place = {
 export const SOURCE_URL =
   "https://vk.ru/@mr.molsovet-podvedomstvennye-uchrezhdeniya";
 export const SOURCE_DATE = "29.07.2025";
+
+type GeocodedLocation = {
+  address: string;
+  coordinates: [number, number];
+  matchedAddress: string;
+  source: string;
+  retrievedAt: string;
+};
+const resolvedLocations = geocodedPlaces as Record<string, GeocodedLocation>;
+
+export function locationFor(place: Place) {
+  const candidate = resolvedLocations[place.id];
+  const valid =
+    candidate?.address === place.address &&
+    candidate.coordinates?.length === 2 &&
+    candidate.coordinates.every(Number.isFinite) &&
+    candidate.coordinates[0] > 59.77 &&
+    candidate.coordinates[0] < 59.94 &&
+    candidate.coordinates[1] > 30.17 &&
+    candidate.coordinates[1] < 30.46;
+  return valid
+    ? {
+        coordinates: candidate.coordinates,
+        resolved: true,
+        source: candidate.source,
+      }
+    : {
+        coordinates: place.coordinates,
+        resolved: false,
+        source: "Предварительное размещение",
+      };
+}
 export const categories: { id: Category; label: string; color: string }[] = [
   { id: "creative", label: "Творчество", color: "#ab79cf" },
   { id: "sport", label: "Спорт", color: "#e9a64b" },
