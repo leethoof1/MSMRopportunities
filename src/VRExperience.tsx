@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { VRButton } from "three/addons/webxr/VRButton.js";
-import { ArrowLeft, ArrowRight, Glasses, MapPin } from "lucide-react";
+import { ArrowLeft, ArrowRight, MapPin } from "lucide-react";
 import type { Place } from "./data";
+import VRHeadsetIcon from "./VRHeadsetIcon";
 
 type Props = {
   places: Place[];
@@ -385,7 +386,7 @@ export default function VRExperience({ places, selected, onSelect }: Props) {
     <div className="vr-content">
       <div className="vr-intro">
         <span>
-          <Glasses size={17} />
+          <VRHeadsetIcon size={17} />
           Виртуальный каталог
         </span>
         <p>

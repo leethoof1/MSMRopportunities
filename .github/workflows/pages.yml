@@ -23,10 +23,19 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Check Yandex Maps configuration
+        env:
+          VITE_YANDEX_MAPS_API_KEY: ${{ secrets.YANDEX_MAPS_API_KEY }}
+        run: |
+          if [ -z "${VITE_YANDEX_MAPS_API_KEY//[[:space:]]/}" ]; then
+            echo "::error::Add YANDEX_MAPS_API_KEY in Settings > Secrets and variables > Actions before publishing."
+            exit 1
+          fi
       - run: npm ci
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_YANDEX_MAPS_API_KEY: ${{ secrets.YANDEX_MAPS_API_KEY }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

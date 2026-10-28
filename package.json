@@ -26,6 +26,7 @@
     "@types/react-dom": "^19.0.0",
     "@types/three": "^0.180.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "@yandex/ymaps3-types": "^1.0.21772363",
     "prettier": "^3.9.10",
     "typescript": "~5.9.3",
     "vite": "^7.1.0"
