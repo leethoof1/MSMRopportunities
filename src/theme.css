@@ -275,7 +275,6 @@ html {
   color: var(--ink);
   border-color: var(--line);
 }
-.brand-symbol,
 .detail-actions > a,
 .place-pin.is-active {
   background: var(--accent-strong);
@@ -606,6 +605,15 @@ input::placeholder {
 .organization-cards p {
   font-size: 11px;
   line-height: 1.8;
+}
+.organization-cards a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--purple);
+  font-size: 12px;
+  font-weight: 650;
 }
 .paid-activities {
   margin-top: 19px;

@@ -36,12 +36,14 @@ export const organizations = {
   mpc: {
     name: "Молодёжный центр «Московский»",
     shortName: "МЦ «Московский»",
+    vkUrl: "https://vk.ru/mpcmoskovski",
     description:
       "Клубы, молодёжное пространство «На Звёздной» и центр молодёжных инициатив «Простор».",
   },
   pulkovec: {
     name: "Дом молодёжи «Пулковец»",
     shortName: "ДМ «Пулковец»",
+    vkUrl: "https://vk.ru/dmpulkovec",
     description:
       "Дом молодёжи, Центр патриотического воспитания и пространство «Просто.Московский».",
   },

@@ -7,7 +7,6 @@ import {
   useState,
 } from "react";
 import {
-  ArrowDown,
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
@@ -175,14 +174,15 @@ export default function App() {
         <a
           href={import.meta.env.BASE_URL}
           className="brand"
-          aria-label="Молодёжный совет Московского района — главная"
+          aria-label="Возможности молодёжи в Московском районе — главная"
         >
-          <span className="brand-symbol">
-            м<span>с</span>
-            <i />
-          </span>
+          <img
+            className="brand-symbol"
+            src={`${import.meta.env.BASE_URL}moscow-gates.png`}
+            alt=""
+          />
           <span>
-            МОЛОДЁЖНЫЙ СОВЕТ<small>МОСКОВСКОГО РАЙОНА</small>
+            ВОЗМОЖНОСТИ МОЛОДЁЖИ<small>В МОСКОВСКОМ РАЙОНЕ</small>
           </span>
         </a>
         <nav className="desktop-nav" aria-label="Основная навигация">
@@ -235,12 +235,7 @@ export default function App() {
               Открой места рядом, где начинается
               <br className="desktop-br" /> что-то большее.
             </p>
-            <a href="#explore" className="hero-cta">
-              Найди своё{" "}
-              <span>
-                <ArrowDown size={17} />
-              </span>
-            </a>
+            <p className="hero-cta">Найди своё</p>
           </div>
           <div className="hero-stamp" aria-hidden="true">
             <span>В РАЙОНЕ</span>
@@ -505,7 +500,7 @@ export default function App() {
             <Users size={26} />
           </div>
           <div>
-            <h2>Район становится ближе, когда вы вместе.</h2>
+            <h2>Район становится ближе, когда мы вместе.</h2>
             <p>Знакомься с молодёжным советом. Предлагай, участвуй, меняй.</p>
           </div>
           <a href="https://vk.ru/mr.molsovet" target="_blank" rel="noreferrer">
@@ -547,19 +542,18 @@ export default function App() {
                 <div key={id}>
                   <h3>{organization.name}</h3>
                   <p>{organization.description}</p>
+                  <a href={organization.vkUrl} target="_blank" rel="noreferrer">
+                    {organization.name} ВКонтакте <ExternalLink size={16} />
+                  </a>
                 </div>
               ))}
             </div>
             <div className="notice">
               <Info size={19} />
               <p>
-                Занятия и контакты обновлены по списку центра «Московский»,
-                предоставленному молодёжным советом; дата публикации в файле не
-                указана. Для учреждений, отсутствующих в новом списке, сохранены
-                сведения из статьи от <strong>{SOURCE_DATE}</strong>. Карта
-                района доступна через Яндекс Карты или резервную OpenStreetMap.
-                Положение неподтверждённых меток помечено отдельно. Перед
-                поездкой проверяй адрес и расписание у организаторов.
+                Карта района доступна через Яндекс Карты или резервную
+                OpenStreetMap. Перед поездкой проверяй адрес и расписание у
+                организаторов.
               </p>
             </div>
             <h3>Скоро — внутри пространств</h3>
@@ -569,9 +563,6 @@ export default function App() {
               виртуальный каталог с карточками учреждений.
             </p>
             <div className="about-links">
-              <a href={SOURCE_URL} target="_blank" rel="noreferrer">
-                Статья — источник данных <ExternalLink size={16} />
-              </a>
               <a
                 href="https://vk.ru/mr.molsovet"
                 target="_blank"

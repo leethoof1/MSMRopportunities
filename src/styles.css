@@ -93,33 +93,13 @@ h3 {
   margin-top: 4px;
 }
 .brand-symbol {
-  width: 46px;
-  height: 46px;
-  display: flex;
-  align-items: center;
-  position: relative;
-  color: #fff;
-  background: var(--purple);
-  border-radius: 13px;
-  font-size: 32px;
-  line-height: 1;
-  letter-spacing: -8px;
-  padding-left: 6px;
-  font-weight: 900;
-  transform: rotate(-6deg);
-}
-.brand-symbol span {
-  font-size: 27px;
-  transform: translate(-1px, 4px);
-}
-.brand-symbol i {
-  height: 8px;
-  width: 8px;
-  border-radius: 2px;
-  background: #e4f3b4;
-  position: absolute;
-  right: -3px;
-  top: -2px;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  padding: 6px;
+  background: linear-gradient(135deg, #9945ff, #7fded0);
+  border-radius: 12px;
 }
 .desktop-nav {
   display: flex;
@@ -232,15 +212,6 @@ h1 > span:first-of-type {
   color: #383d34;
   font-size: 12px;
   font-weight: 750;
-}
-.hero-cta span {
-  width: 29px;
-  height: 29px;
-  border-radius: 50%;
-  background: var(--lime);
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 .hero-stamp {
   width: 123px;
@@ -1675,10 +1646,6 @@ h1 > span:first-of-type {
   .brand-symbol {
     width: 40px;
     height: 40px;
-    font-size: 27px;
-  }
-  .brand-symbol span {
-    font-size: 24px;
   }
   .desktop-nav {
     gap: 14px;
@@ -1896,16 +1863,7 @@ h1 > span:first-of-type {
     width: 35px;
     height: 35px;
     border-radius: 10px;
-    font-size: 24px;
-    padding-left: 4px;
-    letter-spacing: -7px;
-  }
-  .brand-symbol span {
-    font-size: 22px;
-  }
-  .brand-symbol i {
-    width: 6px;
-    height: 6px;
+    padding: 4px;
   }
   .desktop-nav {
     display: none;
