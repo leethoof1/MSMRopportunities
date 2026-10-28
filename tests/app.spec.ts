@@ -35,28 +35,25 @@ test("loads the complete catalogue and shows source limitations", async ({
   ).toBe(true);
 });
 
-test("reviewed club locations retain the correct source in their details", async ({
+test("club details show addresses and contacts without source footnotes", async ({
   page,
 }) => {
-  for (const [id, name, source] of [
-    ["kosmos", "Космос", "OpenStreetMap / Nominatim"],
-    ["romantiki", "Романтики", "OpenStreetMap / Nominatim"],
-    ["oktyabr", "Октябрь", "Яндекс Карты"],
+  for (const [id, name, address] of [
+    ["kosmos", "Космос", "Московский проспект, 174А"],
+    ["romantiki", "Романтики", "Ленинский проспект, 158, корп. 2"],
+    ["oktyabr", "Октябрь", "Пулковская улица, 11, корп. 1"],
   ]) {
     await page.goto(`/?place=${id}`);
-    const dialog = page.getByRole("region", { name: `Карточка: ${name}` });
+    const card = page.getByRole("region", { name: `Карточка: ${name}` });
     await expect(
-      dialog.getByRole("heading", { name, exact: true }),
+      card.getByRole("heading", { name, exact: true }),
+    ).toBeVisible();
+    await expect(card.getByText(address, { exact: true })).toBeVisible();
+    await expect(
+      card.locator('.detail-facts a[href^="tel:"]').first(),
     ).toBeVisible();
     await expect(
-      dialog.getByText(`Санкт-Петербург · точка по адресу · ${source}`, {
-        exact: true,
-      }),
-    ).toBeVisible();
-    await expect(
-      dialog.getByText("Санкт-Петербург · положение метки уточняется", {
-        exact: true,
-      }),
+      card.locator(".detail-facts small, .source-detail"),
     ).toHaveCount(0);
   }
 });

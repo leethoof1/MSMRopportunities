@@ -45,12 +45,10 @@ import {
   filterPlaces,
   places,
   routeUrl,
-  locationFor,
   vkLinkFor,
   DISTRICT_VK_URL,
   organizations,
   SOURCE_DATE,
-  SOURCE_URL,
   type Category,
   type Place,
 } from "./data";
@@ -768,32 +766,15 @@ function PlaceDetail({
         <div className="detail-facts">
           <p>
             <MapPin size={17} />
-            <span>
-              {place.address}
-              <small>
-                {locationFor(place).resolved
-                  ? `Санкт-Петербург · точка по адресу · ${locationFor(place).source}`
-                  : "Санкт-Петербург · положение метки уточняется"}
-              </small>
-            </span>
+            <span>{place.address}</span>
           </p>
           <p>
             <Clock3 size={17} />
-            <span>
-              {place.hours || "Расписание уточняй у организаторов"}
-              <small>
-                {place.updatedProgramme
-                  ? "Обновлённый список центра «Московский»"
-                  : `По статье от ${SOURCE_DATE}`}
-              </small>
-            </span>
+            <span>{place.hours || "Расписание уточняй у организаторов"}</span>
           </p>
           <p>
             <Accessibility size={17} />
-            <span>
-              Для молодёжи 14–35 лет
-              <small>Условия отдельных студий могут отличаться</small>
-            </span>
+            <span>Для молодёжи 14–35 лет</span>
           </p>
           {place.phone && (
             <p>
@@ -807,11 +788,6 @@ function PlaceDetail({
                     {phone}
                   </a>
                 ))}
-                <small>
-                  {place.updatedProgramme
-                    ? "Контакт из обновлённого списка"
-                    : "Телефон с предоставленной карты"}
-                </small>
               </span>
             </p>
           )}
@@ -860,17 +836,6 @@ function PlaceDetail({
             VR-каталог <ArrowUpRight size={16} />
           </button>
         </div>
-        <a
-          className="source-detail"
-          href={place.fromMap ? "https://vk.ru/mr.molsovet" : SOURCE_URL}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {place.fromMap
-            ? "Молодёжный совет — уточнить данные"
-            : "Данные и контакты в статье совета"}{" "}
-          <ExternalLink size={14} />
-        </a>
       </div>
       <div className="detail-actions">
         <a href={routeUrl(place)} target="_blank" rel="noreferrer">
