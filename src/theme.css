@@ -8,6 +8,128 @@
   --text-secondary: #747d6d;
   --text-tertiary: #858e7e;
 }
+.desktop-theme-switch {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  flex-shrink: 0;
+}
+.desktop-theme-switch button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 33px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 650;
+}
+.desktop-theme-switch button:hover {
+  background: var(--surface-hover);
+}
+.desktop-theme-switch button[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--purple);
+  box-shadow: 0 1px 4px #00000014;
+}
+.mobile-theme-control {
+  display: none !important;
+}
+.yandex-place-marker {
+  position: relative;
+  display: block;
+  width: 42px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  background: none;
+  transform: translate(-50%, -100%);
+  cursor: pointer;
+}
+.yandex-place-marker:hover .place-pin {
+  transform: rotate(-45deg) scale(1.08);
+}
+.yandex-place-marker:focus-visible {
+  outline: 3px solid var(--purple);
+  outline-offset: 5px;
+  border-radius: 8px;
+}
+.yandex-place-marker .place-pin {
+  margin: 0 auto;
+}
+.yandex-scheme-label {
+  position: absolute;
+  top: 22px;
+  right: 20px;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 10px;
+  box-shadow: 0 3px 12px #28342107;
+  pointer-events: none;
+}
+.yandex-scheme-label > span {
+  font-size: 9px;
+  color: var(--text-secondary);
+  border-left: 1px solid var(--line);
+  padding-left: 7px;
+}
+.map-shell[data-map-provider="yandex"] .map-coordinate-note {
+  bottom: 39px;
+  left: 12px;
+}
+.map-tools button:disabled {
+  opacity: 0.4;
+}
+@media (max-width: 960px) {
+  .desktop-theme-switch button > span {
+    display: none;
+  }
+  .desktop-theme-switch button {
+    width: 33px;
+    padding: 6px;
+  }
+  .yandex-scheme-label {
+    top: 60px;
+    left: 14px;
+    right: auto;
+    font-size: 9px;
+    padding: 8px;
+  }
+}
+@media (max-width: 650px) {
+  .desktop-theme-switch {
+    display: none;
+  }
+  .mobile-theme-control {
+    display: flex !important;
+  }
+  .yandex-scheme-label {
+    top: 13px;
+    left: auto;
+    right: 12px;
+    padding: 8px;
+    font-size: 8px;
+  }
+  .yandex-scheme-label > span {
+    display: none;
+  }
+  .map-shell[data-map-provider="yandex"] .map-coordinate-note {
+    bottom: 40px;
+  }
+}
 :root[data-theme="dark"] {
   --page-bg: #14171c;
   --surface: #1d2229;

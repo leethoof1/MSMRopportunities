@@ -10,6 +10,26 @@ test.beforeEach(async ({ page }) => {
 const mainSearch = (page: import("@playwright/test").Page) =>
   page.getByRole("textbox", { name: "Поиск клуба, занятия или адреса" });
 
+async function setTheme(
+  page: import("@playwright/test").Page,
+  value: "light" | "dark" | "system",
+) {
+  const select = page.locator('select[aria-label="Тема оформления"]');
+  if (await select.isVisible()) await select.selectOption(value);
+  else
+    await page
+      .getByRole("button", {
+        name:
+          value === "dark"
+            ? "Тёмная тема"
+            : value === "light"
+              ? "Светлая тема"
+              : "Тема как на устройстве",
+        exact: true,
+      })
+      .click();
+}
+
 test("natural singing request finds actual vocal studios and can narrow by location", async ({
   page,
 }) => {
@@ -129,7 +149,9 @@ test("automatic theme follows system changes without a horizontal overflow", asy
       .locator("html")
       .evaluate((element) => getComputedStyle(element).backgroundColor),
   ).toBe("rgb(20, 23, 28)");
-  await expect(page.getByLabel("Тема оформления")).toHaveValue("system");
+  await expect(
+    page.locator('select[aria-label="Тема оформления"]'),
+  ).toHaveValue("system");
   await page
     .getByRole("button", { name: "Показать список", exact: true })
     .click();
@@ -157,16 +179,20 @@ test("manual theme persists and auto mode restores system preference", async ({
   page,
 }) => {
   await page.emulateMedia({ colorScheme: "light" });
-  await page.getByLabel("Тема оформления").selectOption("dark");
+  await setTheme(page, "dark");
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await expect(page.getByLabel("Тема оформления")).toHaveValue("dark");
-  await page.getByLabel("Тема оформления").selectOption("system");
+  await expect(
+    page.locator('select[aria-label="Тема оформления"]'),
+  ).toHaveValue("dark");
+  await setTheme(page, "system");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.emulateMedia({ colorScheme: "dark" });
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.reload();
-  await expect(page.getByLabel("Тема оформления")).toHaveValue("system");
+  await expect(
+    page.locator('select[aria-label="Тема оформления"]'),
+  ).toHaveValue("system");
 });
 
 test("updated programmes keep paid children's judo separate from free results", async ({

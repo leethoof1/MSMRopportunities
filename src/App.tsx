@@ -26,15 +26,11 @@ import {
   Users,
   Dumbbell,
   X,
-  Glasses,
   Grid2X2,
   ExternalLink,
   Accessibility,
   Copy,
   Phone,
-  Monitor,
-  Moon,
-  Sun,
 } from "lucide-react";
 import MapView from "./MapView";
 import Modal from "./Modal";
@@ -43,7 +39,9 @@ import {
   interpretedInterests,
   matchingActivities,
 } from "./activitySearch";
-import { useTheme, type ThemePreference } from "./useTheme";
+import { useTheme } from "./useTheme";
+import ThemeSwitch from "./ThemeSwitch";
+import VRHeadsetIcon from "./VRHeadsetIcon";
 import {
   categories,
   filterPlaces,
@@ -89,7 +87,7 @@ function initialPlace() {
 }
 
 export default function App() {
-  const { preference, changePreference } = useTheme();
+  const { preference, theme, changePreference } = useTheme();
   const [query, setQuery] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
   const [favorites, setFavorites] = useState<string[]>(readFavorites);
@@ -202,32 +200,13 @@ export default function App() {
           </button>
           <button onClick={() => setModal("about")}>О проекте</button>
         </nav>
-        <label className="theme-control" title="Тема оформления">
-          {preference === "system" ? (
-            <Monitor size={18} />
-          ) : preference === "dark" ? (
-            <Moon size={18} />
-          ) : (
-            <Sun size={18} />
-          )}
-          <select
-            aria-label="Тема оформления"
-            value={preference}
-            onChange={(event) =>
-              changePreference(event.target.value as ThemePreference)
-            }
-          >
-            <option value="system">Авто</option>
-            <option value="light">Светлая</option>
-            <option value="dark">Тёмная</option>
-          </select>
-        </label>
+        <ThemeSwitch preference={preference} onChange={changePreference} />
         <button
           className="vr-nav"
           aria-label="Заглянуть в VR"
           onClick={() => setModal("vr")}
         >
-          <Glasses size={20} />
+          <VRHeadsetIcon size={20} />
           <span>Заглянуть в VR</span>
           <ArrowUpRight size={16} />
         </button>
@@ -422,7 +401,7 @@ export default function App() {
                   onClick={() => setOnly360((value) => !value)}
                   aria-pressed={only360}
                 >
-                  <Glasses size={14} />
+                  <VRHeadsetIcon size={14} />
                   360°{only360 && <Check size={12} />}
                 </button>
               </div>
@@ -473,6 +452,7 @@ export default function App() {
 
             <div className="map-area">
               <MapView
+                theme={theme}
                 places={filtered}
                 selected={selectedId}
                 onSelect={selectPlace}
@@ -576,10 +556,10 @@ export default function App() {
                 Занятия и контакты обновлены по списку центра «Московский»,
                 предоставленному молодёжным советом; дата публикации в файле не
                 указана. Для учреждений, отсутствующих в новом списке, сохранены
-                сведения из статьи от <strong>{SOURCE_DATE}</strong>. Подложка
-                карты — OpenStreetMap. Положение неподтверждённых меток помечено
-                отдельно. Перед поездкой проверяй адрес и расписание у
-                организаторов.
+                сведения из статьи от <strong>{SOURCE_DATE}</strong>. Карта
+                района доступна через Яндекс Карты или резервную OpenStreetMap.
+                Положение неподтверждённых меток помечено отдельно. Перед
+                поездкой проверяй адрес и расписание у организаторов.
               </p>
             </div>
             <h3>Скоро — внутри пространств</h3>
@@ -950,7 +930,7 @@ function PlaceDetail({
         )}
         <div className="tour-preview">
           <div>
-            <Glasses size={23} />
+            <VRHeadsetIcon size={23} />
             <span>
               <strong>Загляни внутрь</strong>
               <small>Панорамы 360° появятся после съёмки</small>
