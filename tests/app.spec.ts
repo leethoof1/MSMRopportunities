@@ -11,9 +11,9 @@ test("loads the complete catalogue and shows source limitations", async ({
   page,
 }) => {
   await expect(
-    page.getByRole("heading", { name: "23 пространства" }),
+    page.getByRole("heading", { name: "22 пространства" }),
   ).toBeVisible();
-  await expect(page.getByRole("article")).toHaveCount(23);
+  await expect(page.getByRole("article")).toHaveCount(22);
   await expect(page.locator(".map-coordinate-note")).toBeVisible();
   await expect(page.locator(".leaflet-image-layer")).toHaveCount(0);
   await expect(page.locator(".map-shell")).toHaveAttribute(
@@ -21,7 +21,7 @@ test("loads the complete catalogue and shows source limitations", async ({
     "openstreetmap",
   );
   await expect(
-    page.getByText("Данные на 29.07.2025.", { exact: false }),
+    page.getByText("статья 29.07.2025.", { exact: false }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -41,10 +41,10 @@ test("searches activities, normalizes ё and combines category filters", async (
   await expect(
     page.getByRole("button", { name: "Подробнее: На Звёздной", exact: true }),
   ).toBeVisible();
-  await search.fill("японский");
+  await search.fill("робототехника");
   await expect(page.getByRole("article")).toHaveCount(1);
   await expect(
-    page.getByRole("button", { name: "Подробнее: Молодёжный", exact: true }),
+    page.getByRole("button", { name: "Подробнее: Простор", exact: true }),
   ).toBeVisible();
   await search.fill("");
   await page.getByRole("button", { name: "Спорт", exact: true }).click();
@@ -64,7 +64,7 @@ test("empty results can be reset, 360 filter does not invent tours", async ({
     .fill("абракадабра");
   await expect(page.getByText("Пока ничего не нашлось")).toBeVisible();
   await page.getByRole("button", { name: "Показать все пространства" }).click();
-  await expect(page.getByRole("article")).toHaveCount(23);
+  await expect(page.getByRole("article")).toHaveCount(22);
   await page.getByRole("button", { name: "360°", exact: true }).click();
   await expect(page.getByText("Панорамы ещё впереди")).toBeVisible();
   await expect(page.getByRole("article")).toHaveCount(0);
@@ -109,8 +109,8 @@ test("place details expose real activities, phone, address route and shareable U
     card.getByText("Актёрское мастерство", { exact: true }),
   ).toBeVisible();
   await expect(
-    card.getByRole("link", { name: "+7 (812) 246-30-08" }),
-  ).toHaveAttribute("href", "tel:+78122463008");
+    card.getByRole("link", { name: "+7 (911) 951-80-31" }),
+  ).toHaveAttribute("href", "tel:+79119518031");
   await expect(
     card.getByRole("link", { name: "Найти на карте" }),
   ).toHaveAttribute("href", /yandex\.ru\/maps\/\?text=.*51/);
@@ -142,35 +142,37 @@ test("a map marker opens its corresponding place after fitting the results", asy
   await page
     .getByRole("button", { name: "Показать все найденные места" })
     .click();
-  const marker = page.locator('.leaflet-marker-icon[title="Спутник"]');
+  const marker = page.locator('.leaflet-marker-icon[title="Вертикаль"]');
   await marker.click();
   await expect(
-    page.getByRole("region", { name: "Карточка: Спутник" }),
+    page.getByRole("region", { name: "Карточка: Вертикаль" }),
   ).toBeVisible();
 });
 
-test("list view and map-only source entry remain usable", async ({ page }) => {
+test("list view opens an updated club with direct VK and both contact phones", async ({
+  page,
+}) => {
   await page
     .getByRole("button", { name: "Показать список", exact: true })
     .click();
   await page
     .getByRole("textbox", { name: "Поиск клуба, занятия или адреса" })
-    .fill("Искорка");
+    .fill("Надежда");
   await page
-    .getByRole("button", { name: "Подробнее: Искорка", exact: true })
+    .getByRole("button", { name: "Подробнее: Надежда", exact: true })
     .click();
   const card = page
-    .getByRole("region", { name: "Карточка: Искорка" })
+    .getByRole("region", { name: "Карточка: Надежда" })
     .filter({ visible: true });
   await expect(
-    card.getByText("Список студий пока уточняется.", { exact: false }),
+    card.getByRole("link", { name: "+7 (921) 869-14-58" }),
+  ).toHaveAttribute("href", "tel:+79218691458");
+  await expect(
+    card.getByRole("link", { name: "+7 (812) 417-50-73" }),
   ).toBeVisible();
   await expect(
-    card.getByRole("link", { name: "+7 (812) 417-30-10" }),
-  ).toBeVisible();
-  await expect(
-    card.getByText("Информация уточняется", { exact: true }),
-  ).toBeVisible();
+    card.getByRole("link", { name: "Группа клуба ВКонтакте" }),
+  ).toHaveAttribute("href", "https://vk.ru/club136795033");
 });
 
 test("real OSM is requested immediately and failure preserves the catalogue", async ({
@@ -193,7 +195,7 @@ test("real OSM is requested immediately and failure preserves the catalogue", as
   await expect(
     page.getByRole("link", { name: "OpenStreetMap contributors" }),
   ).toBeVisible();
-  await expect(page.getByRole("article")).toHaveCount(23);
+  await expect(page.getByRole("article")).toHaveCount(22);
   await expect(
     page.getByRole("link", { name: "Открыть в Яндексе" }),
   ).toHaveAttribute("href", /yandex\.ru/);

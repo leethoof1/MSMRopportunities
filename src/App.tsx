@@ -32,15 +32,27 @@ import {
   Accessibility,
   Copy,
   Phone,
+  Monitor,
+  Moon,
+  Sun,
 } from "lucide-react";
 import MapView from "./MapView";
 import Modal from "./Modal";
+import {
+  activitySuggestions,
+  interpretedInterests,
+  matchingActivities,
+} from "./activitySearch";
+import { useTheme, type ThemePreference } from "./useTheme";
 import {
   categories,
   filterPlaces,
   places,
   routeUrl,
   locationFor,
+  vkLinkFor,
+  DISTRICT_VK_URL,
+  organizations,
   SOURCE_DATE,
   SOURCE_URL,
   type Category,
@@ -77,6 +89,7 @@ function initialPlace() {
 }
 
 export default function App() {
+  const { preference, changePreference } = useTheme();
   const [query, setQuery] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
   const [favorites, setFavorites] = useState<string[]>(readFavorites);
@@ -99,6 +112,16 @@ export default function App() {
     [query, selectedCategories, favoritesOnly, favorites, only360],
   );
   const selected = places.find((place) => place.id === selectedId);
+  const available = useMemo(
+    () =>
+      filterPlaces("", selectedCategories, favoritesOnly, favorites, only360),
+    [selectedCategories, favoritesOnly, favorites, only360],
+  );
+  const suggestions = useMemo(
+    () => activitySuggestions(query, available),
+    [query, available],
+  );
+  const interests = useMemo(() => interpretedInterests(query), [query]);
   const closeModal = useCallback(() => setModal(null), []);
   const selectPlace = useCallback((id: string) => setSelectedId(id), []);
 
@@ -179,7 +202,31 @@ export default function App() {
           </button>
           <button onClick={() => setModal("about")}>О проекте</button>
         </nav>
-        <button className="vr-nav" onClick={() => setModal("vr")}>
+        <label className="theme-control" title="Тема оформления">
+          {preference === "system" ? (
+            <Monitor size={18} />
+          ) : preference === "dark" ? (
+            <Moon size={18} />
+          ) : (
+            <Sun size={18} />
+          )}
+          <select
+            aria-label="Тема оформления"
+            value={preference}
+            onChange={(event) =>
+              changePreference(event.target.value as ThemePreference)
+            }
+          >
+            <option value="system">Авто</option>
+            <option value="light">Светлая</option>
+            <option value="dark">Тёмная</option>
+          </select>
+        </label>
+        <button
+          className="vr-nav"
+          aria-label="Заглянуть в VR"
+          onClick={() => setModal("vr")}
+        >
           <Glasses size={20} />
           <span>Заглянуть в VR</span>
           <ArrowUpRight size={16} />
@@ -237,7 +284,7 @@ export default function App() {
               <Search size={20} />
               <input
                 aria-label="Поиск клуба, занятия или адреса"
-                placeholder="Клуб, занятие или адрес"
+                placeholder="Хочу петь, танцевать, бороться…"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
@@ -301,6 +348,37 @@ export default function App() {
             </button>
           </div>
 
+          {interests.length > 0 && (
+            <div className="search-insights" aria-label="Занятия по интересам">
+              <div className="search-interpretation" role="status">
+                <Sparkles size={16} />
+                <span>
+                  Ищем по интересам: <strong>{interests.join(", ")}</strong>
+                </span>
+              </div>
+              {suggestions.length > 0 && (
+                <div className="activity-suggestions">
+                  {suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.id}
+                      onClick={() => setQuery(suggestion.label)}
+                    >
+                      {suggestion.label}
+                      <span>{suggestion.count}</span>
+                      <ArrowUpRight size={13} />
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!filtered.length && suggestions.length > 0 && (
+                <p>
+                  Для этого запроса подтверждённых занятий не нашлось. Можно
+                  посмотреть близкие направления.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className={`workspace ${view === "list" ? "list-mode" : ""}`}>
             <aside className="results-panel">
               <div className="results-heading">
@@ -358,6 +436,7 @@ export default function App() {
                     favorite={favorites.includes(place.id)}
                     onSelect={() => selectPlace(place.id)}
                     onFavorite={() => toggleFavorite(place.id)}
+                    query={query}
                   />
                 ))}
                 {!filtered.length && (
@@ -386,7 +465,8 @@ export default function App() {
               <div className="source-note">
                 <Info size={14} />
                 <span>
-                  Данные на {SOURCE_DATE}. Уточняй расписание перед визитом.
+                  Обновлённый список центра и статья {SOURCE_DATE}. Расписание
+                  уточняй у клуба.
                 </span>
               </div>
             </aside>
@@ -478,19 +558,28 @@ export default function App() {
             </p>
             <h3>{places.length} места. Много способов быть собой.</h3>
             <p>
-              Учреждения МПЦ «Московский» и Дома молодёжи «Пулковец». В статье
-              указаны бесплатные занятия для молодёжи от 14 до 35 лет; у
-              отдельных студий есть дополнительные возрастные условия.
+              Два учреждения подведомственны администрации Московского района.
+              Они предлагают бесплатные занятия для молодёжи от 14 до 35 лет.
+              Платные занятия показаны отдельно.
             </p>
+            <div className="organization-cards">
+              {Object.entries(organizations).map(([id, organization]) => (
+                <div key={id}>
+                  <h3>{organization.name}</h3>
+                  <p>{organization.description}</p>
+                </div>
+              ))}
+            </div>
             <div className="notice">
               <Info size={19} />
               <p>
-                Первая версия проекта. Данные из статьи молодёжного совета
-                актуальны на <strong>{SOURCE_DATE}</strong>. «Искорка» и
-                телефоны добавлены из предоставленной карты, дата которой не
-                указана. Подложка карты — OpenStreetMap. Положение
-                неподтверждённых меток помечено отдельно. Перед поездкой
-                проверяй адрес и расписание у организаторов.
+                Занятия и контакты обновлены по списку центра «Московский»,
+                предоставленному молодёжным советом; дата публикации в файле не
+                указана. Для учреждений, отсутствующих в новом списке, сохранены
+                сведения из статьи от <strong>{SOURCE_DATE}</strong>. Подложка
+                карты — OpenStreetMap. Положение неподтверждённых меток помечено
+                отдельно. Перед поездкой проверяй адрес и расписание у
+                организаторов.
               </p>
             </div>
             <h3>Скоро — внутри пространств</h3>
@@ -509,6 +598,9 @@ export default function App() {
                 rel="noreferrer"
               >
                 Молодёжный совет <ExternalLink size={16} />
+              </a>
+              <a href={DISTRICT_VK_URL} target="_blank" rel="noreferrer">
+                Администрация Московского района <ExternalLink size={16} />
               </a>
             </div>
             <p className="privacy-note">
@@ -558,6 +650,7 @@ function PlaceCard({
   favorite,
   onSelect,
   onFavorite,
+  query,
 }: {
   place: Place;
   index: number;
@@ -565,7 +658,11 @@ function PlaceCard({
   favorite: boolean;
   onSelect: () => void;
   onFavorite: () => void;
+  query: string;
 }) {
+  const matched = query.trim()
+    ? matchingActivities(query, place.activities)
+    : [];
   return (
     <article className={`place-card ${selected ? "selected" : ""}`}>
       <button
@@ -611,6 +708,13 @@ function PlaceCard({
               <span>+{place.categories.length - 2}</span>
             )}
           </div>
+          {matched.length > 0 && (
+            <p className="matched-activity" title={matched.join(" · ")}>
+              <Check size={11} />
+              {matched[0]}
+              {matched.length > 1 ? ` +${matched.length - 1}` : ""}
+            </p>
+          )}
         </div>
         <ChevronRight className="card-chevron" size={17} />
       </button>
@@ -642,7 +746,18 @@ function PlaceDetail({
   onToast: (text: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
-  useEffect(() => setCopied(false), [place.id]);
+  const [activityQuery, setActivityQuery] = useState("");
+  const visibleActivities = activityQuery.trim()
+    ? matchingActivities(activityQuery, place.activities)
+    : place.activities;
+  const visiblePaidActivities = activityQuery.trim()
+    ? matchingActivities(activityQuery, place.paidActivities || [])
+    : place.paidActivities || [];
+  const vk = vkLinkFor(place);
+  useEffect(() => {
+    setCopied(false);
+    setActivityQuery("");
+  }, [place.id]);
   async function share() {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -687,8 +802,7 @@ function PlaceDetail({
       </div>
       <div className="detail-body">
         <p className="eyebrow">
-          {place.kind} ·{" "}
-          {place.organization === "mpc" ? "МПЦ «Московский»" : "ДМ «Пулковец»"}
+          {place.kind} · {organizations[place.organization].shortName}
         </p>
         <h2>{place.name}</h2>
         {place.council && (
@@ -698,6 +812,29 @@ function PlaceDetail({
           </div>
         )}
         <p className="detail-description">{place.description}</p>
+        <a
+          className="club-vk-link"
+          href={vk.url}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span className="vk-symbol" aria-hidden="true">
+            VK
+          </span>
+          <span>
+            <strong>
+              {vk.direct
+                ? "Группа клуба ВКонтакте"
+                : "Найти группу клуба ВКонтакте"}
+            </strong>
+            {!vk.direct && (
+              <small>
+                {place.vkGroupName || place.name} · ссылка уточняется
+              </small>
+            )}
+          </span>
+          <ExternalLink size={16} />
+        </a>
         <div className="detail-facts">
           <p>
             <MapPin size={17} />
@@ -715,9 +852,9 @@ function PlaceDetail({
             <span>
               {place.hours || "Расписание уточняй у организаторов"}
               <small>
-                {place.fromMap
-                  ? "По карте учреждений · дата не указана"
-                  : `По данным на ${SOURCE_DATE}`}
+                {place.updatedProgramme
+                  ? "Обновлённый список центра «Московский»"
+                  : `По статье от ${SOURCE_DATE}`}
               </small>
             </span>
           </p>
@@ -735,25 +872,82 @@ function PlaceDetail({
                 <a href={`tel:${place.phone.replace(/[^+0-9]/g, "")}`}>
                   {place.phone}
                 </a>
-                <small>Телефон с предоставленной карты</small>
+                {place.additionalPhones?.map((phone) => (
+                  <a href={`tel:${phone.replace(/[^+0-9]/g, "")}`} key={phone}>
+                    {phone}
+                  </a>
+                ))}
+                <small>
+                  {place.updatedProgramme
+                    ? "Контакт из обновлённого списка"
+                    : "Телефон с предоставленной карты"}
+                </small>
               </span>
             </p>
           )}
         </div>
         <h3 className="activities-heading">
-          Что здесь есть <span>{place.activities.length}</span>
+          Что здесь есть{" "}
+          <span>
+            {visibleActivities.length}
+            {activityQuery.trim() ? ` / ${place.activities.length}` : ""}
+          </span>
         </h3>
+        {place.activitiesNeedConfirmation && (
+          <p className="activity-confirmation" role="note">
+            Это занятия прежнего клуба «Молодёжный» по данным на {SOURCE_DATE}.
+            Актуальные направления центра «Простор» уточняй в его группе
+            ВКонтакте.
+          </p>
+        )}
+        {place.activities.length > 0 && (
+          <label className="club-activity-search">
+            <Search size={15} />
+            <input
+              value={activityQuery}
+              onChange={(event) => setActivityQuery(event.target.value)}
+              aria-label="Поиск занятий в этом клубе"
+              placeholder="Например, хочу петь"
+            />
+            {activityQuery && (
+              <button
+                onClick={() => setActivityQuery("")}
+                aria-label="Очистить поиск занятий"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </label>
+        )}
         <div className="activity-tags">
+          {place.activities.length > 0 && !visibleActivities.length && (
+            <p className="unconfirmed-activities" role="status">
+              {visiblePaidActivities.length
+                ? "Среди бесплатных занятий совпадений нет. Подходящие платные группы показаны ниже."
+                : "В этом клубе такого занятия пока нет в каталоге. Попробуй другой запрос."}
+            </p>
+          )}
           {!place.activities.length && (
             <p className="unconfirmed-activities">
               Список студий пока уточняется. Позвони в клуб, чтобы узнать о
               занятиях.
             </p>
           )}
-          {place.activities.map((activity) => (
+          {visibleActivities.map((activity) => (
             <span key={activity}>{activity}</span>
           ))}
         </div>
+        {visiblePaidActivities.length > 0 && (
+          <section className="paid-activities" aria-label="Платные занятия">
+            <h3>Платные занятия</h3>
+            <p>Отдельные условия и стоимость уточняй в клубе.</p>
+            <ul>
+              {visiblePaidActivities.map((activity) => (
+                <li key={activity}>{activity}</li>
+              ))}
+            </ul>
+          </section>
+        )}
         <div className="tour-preview">
           <div>
             <Glasses size={23} />
