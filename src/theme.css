@@ -93,6 +93,48 @@
 .map-tools button:disabled {
   opacity: 0.4;
 }
+.map-provider-fallback {
+  position: absolute;
+  left: 23px;
+  top: 76px;
+  z-index: 460;
+  max-width: calc(100% - 100px);
+  padding: 11px 13px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.7;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+}
+.map-provider-fallback button {
+  font-size: 10px;
+  color: var(--purple);
+  padding: 0;
+  font-weight: 700;
+}
+.map-provider-fallback small,
+.map-error-code {
+  font-size: 9px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+@media (max-width: 650px) {
+  .map-provider-fallback {
+    top: 54px;
+    left: 12px;
+    max-width: calc(100% - 68px);
+    font-size: 9px;
+    padding: 9px;
+  }
+  .map-provider-fallback button {
+    font-size: 9px;
+  }
+}
 @media (max-width: 960px) {
   .desktop-theme-switch button > span {
     display: none;

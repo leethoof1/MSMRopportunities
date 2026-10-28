@@ -6,6 +6,35 @@ declare global {
   }
 }
 export type YandexSDK = typeof YandexMaps;
+export type YandexFailureCode =
+  | "YM-CONNECTION"
+  | "YM-TIMEOUT"
+  | "YM-SDK"
+  | "YM-ACCESS"
+  | "YM-RENDER"
+  | "YM-INIT";
+export class YandexSDKError extends Error {
+  constructor(public readonly code: YandexFailureCode) {
+    super(code);
+  }
+}
+function readSDK(): YandexSDK | undefined {
+  // A top-level lexical global is available as ymaps3 without being a Window property.
+  return typeof ymaps3 !== "undefined" ? ymaps3 : window.ymaps3;
+}
+export function yandexFailureCode(error: unknown): YandexFailureCode {
+  if (error instanceof YandexSDKError) return error.code;
+  const message = error instanceof Error ? error.message : "";
+  if (
+    /api.?key|unauthorized|forbidden|access.denied|authentication|authorization|referer|referrer|ключ/i.test(
+      message,
+    )
+  )
+    return "YM-ACCESS";
+  if (/webgl|gpu|rendering.context|graphics.context/i.test(message))
+    return "YM-RENDER";
+  return "YM-INIT";
+}
 let pending: Promise<YandexSDK> | undefined;
 
 export function loadYandexMaps(apiKey: string): Promise<YandexSDK> {
@@ -13,20 +42,20 @@ export function loadYandexMaps(apiKey: string): Promise<YandexSDK> {
   pending = new Promise((resolve, reject) => {
     let settled = false;
     const script = document.createElement("script");
-    const timer = window.setTimeout(() => fail(), 20000);
-    function fail() {
+    const timer = window.setTimeout(() => fail("YM-TIMEOUT"), 20000);
+    function fail(code: YandexFailureCode) {
       if (settled) return;
       settled = true;
       window.clearTimeout(timer);
       script.remove();
       pending = undefined;
-      reject(new Error("Yandex Maps SDK could not be loaded"));
+      reject(new YandexSDKError(code));
     }
     async function ready() {
       try {
-        const sdk = window.ymaps3;
+        const sdk = readSDK();
         if (!sdk) {
-          fail();
+          fail("YM-SDK");
           return;
         }
         await sdk.ready;
@@ -34,11 +63,11 @@ export function loadYandexMaps(apiKey: string): Promise<YandexSDK> {
         settled = true;
         window.clearTimeout(timer);
         resolve(sdk);
-      } catch {
-        fail();
+      } catch (error) {
+        fail(yandexFailureCode(error));
       }
     }
-    if (window.ymaps3) {
+    if (readSDK()) {
       void ready();
       return;
     }
@@ -51,7 +80,7 @@ export function loadYandexMaps(apiKey: string): Promise<YandexSDK> {
     script.onload = () => {
       void ready();
     };
-    script.onerror = fail;
+    script.onerror = () => fail("YM-CONNECTION");
     document.head.appendChild(script);
   });
   return pending;
