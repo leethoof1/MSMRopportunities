@@ -1,0 +1,1 @@
+Yandex logo, used for map attribution. Yandex is a trademark of its respective owner. Asset source: https://github.com/infanasotku/lastliter-map/blob/HEAD/public/yandex/logo.svg

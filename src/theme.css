@@ -8,6 +8,69 @@
   --text-secondary: #747d6d;
   --text-tertiary: #858e7e;
 }
+.map-tiles-style {
+  position: absolute;
+  top: 22px;
+  right: 20px;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 11px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.map-tiles-style select {
+  background: var(--surface);
+  color: var(--ink);
+  border: 0;
+  font: inherit;
+  font-size: 10px;
+  max-width: 150px;
+  cursor: pointer;
+}
+.yandex-tiles-brand {
+  position: absolute;
+  left: 4px;
+  bottom: 0;
+  z-index: 450;
+  display: block;
+  width: 88px;
+  height: 48px;
+}
+.yandex-tiles-brand img {
+  display: block;
+  width: 88px;
+  height: 48px;
+}
+.map-shell[data-map-provider="yandex-tiles"] .map-coordinate-note {
+  bottom: 41px;
+  left: 12px;
+}
+.map-shell[data-map-provider="yandex-tiles"][data-map-theme="dark"]
+  .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9)
+    saturate(0.8);
+}
+@media (max-width: 960px) {
+  .map-tiles-style {
+    top: 60px;
+    right: auto;
+    left: 14px;
+  }
+  .map-tiles-style select {
+    font-size: 9px;
+  }
+}
+@media (max-width: 650px) {
+  .map-tiles-style {
+    top: 57px;
+    left: 12px;
+    padding: 7px 9px;
+  }
+}
 .desktop-theme-switch {
   display: flex;
   align-items: center;

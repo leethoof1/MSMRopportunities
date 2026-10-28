@@ -56,13 +56,13 @@ export default defineConfig({
       command: "npm run dev -- --port 5173 --strictPort",
       url: "http://127.0.0.1:5173",
       reuseExistingServer: !process.env.CI,
-      env: { VITE_YANDEX_MAPS_API_KEY: "" },
+      env: { VITE_YANDEX_TILES_API_KEY: "" },
     },
     {
       command: "npm run dev -- --port 5175 --strictPort",
       url: "http://127.0.0.1:5175",
       reuseExistingServer: !process.env.CI,
-      env: { VITE_YANDEX_MAPS_API_KEY: "sdk-contract-test-only" },
+      env: { VITE_YANDEX_TILES_API_KEY: "tiles-contract-test-only" },
     },
   ],
 });

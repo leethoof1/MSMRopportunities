@@ -23,19 +23,24 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Check Yandex Maps configuration
+      - name: Check Yandex Tiles configuration
         env:
-          VITE_YANDEX_MAPS_API_KEY: ${{ secrets.YANDEX_MAPS_API_KEY }}
+          VITE_YANDEX_TILES_API_KEY: ${{ secrets.YANDEX_MAPS_API_KEY }}
         run: |
-          if [ -z "${VITE_YANDEX_MAPS_API_KEY//[[:space:]]/}" ]; then
-            echo "::error::Add YANDEX_MAPS_API_KEY in Settings > Secrets and variables > Actions before publishing."
+          if [ -z "${VITE_YANDEX_TILES_API_KEY//[[:space:]]/}" ]; then
+            echo "::error::Add the Tiles API key as YANDEX_MAPS_API_KEY in Settings > Secrets and variables > Actions before publishing."
             exit 1
           fi
       - run: npm ci
+      - name: Verify Yandex Tiles access
+        continue-on-error: true
+        env:
+          VITE_YANDEX_TILES_API_KEY: ${{ secrets.YANDEX_MAPS_API_KEY }}
+        run: node --use-env-proxy scripts/check-yandex-tiles.mjs
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
-          VITE_YANDEX_MAPS_API_KEY: ${{ secrets.YANDEX_MAPS_API_KEY }}
+          VITE_YANDEX_TILES_API_KEY: ${{ secrets.YANDEX_MAPS_API_KEY }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
