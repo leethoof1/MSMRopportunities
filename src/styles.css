@@ -2,8 +2,8 @@
 
 :root {
   font-family: "Manrope Variable", sans-serif;
-  color: #25282c;
-  background: #f8f9f6;
+  color: var(--ink);
+  background: var(--page-bg);
   font-synthesis: none;
   font-weight: 450;
   --purple: #7439c8;

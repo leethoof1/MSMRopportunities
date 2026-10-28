@@ -1,4 +1,7 @@
 import geocodedPlaces from "./geocoded-places.json" with { type: "json" };
+import { matchesSearch } from "./activitySearch.ts";
+import { clubUpdates } from "./clubUpdates.ts";
+export { normalize } from "./activitySearch.ts";
 
 export type Category = "creative" | "sport" | "music" | "growth" | "community";
 export type Place = {
@@ -17,11 +20,32 @@ export type Place = {
   phone?: string;
   fromMap?: boolean;
   panorama?: string;
+  vkUrl?: string;
+  vkGroupName?: string;
+  aliases?: string[];
+  activitiesNeedConfirmation?: boolean;
+  updatedProgramme?: boolean;
+  paidActivities?: string[];
+  additionalPhones?: string[];
 };
 
 export const SOURCE_URL =
   "https://vk.ru/@mr.molsovet-podvedomstvennye-uchrezhdeniya";
 export const SOURCE_DATE = "29.07.2025";
+export const organizations = {
+  mpc: {
+    name: "Молодёжный центр «Московский»",
+    shortName: "МЦ «Московский»",
+    description:
+      "Клубы, молодёжное пространство «На Звёздной» и центр молодёжных инициатив «Простор».",
+  },
+  pulkovec: {
+    name: "Дом молодёжи «Пулковец»",
+    shortName: "ДМ «Пулковец»",
+    description:
+      "Дом молодёжи, Центр патриотического воспитания и пространство «Просто.Московский».",
+  },
+};
 
 type GeocodedLocation = {
   address: string;
@@ -83,7 +107,7 @@ const club = (
   organization: "mpc",
   hours: "Пн–сб · 16:00–22:00",
   description:
-    "Место для общения, новых друзей и любимого дела. Здесь можно попробовать себя в студиях и секциях молодёжного центра «Московский».",
+    "Место для общения, новых друзей и любимого дела. Здесь можно попробовать себя в студиях и секциях Молодёжного центра «Московский».",
   ...extra,
 });
 
@@ -169,18 +193,11 @@ export const places: Place[] = [
     "Благодатная улица, 51",
     [59.8775, 30.3376],
     ["creative", "sport", "community"],
-    [
-      "Актёрское мастерство",
-      "Йога",
-      "Свободное общение",
-      "Молодёжный совет Московского района",
-      "Движение Первых",
-    ],
+    ["Актёрское мастерство", "Йога", "Свободное общение", "Движение Первых"],
     "community",
     {
-      council: true,
       description:
-        "Здесь находится офис молодёжного совета при администрации Московского района и районного совета «Движения Первых». Место, где знакомятся и воплощают идеи.",
+        "Молодёжный клуб для занятий актёрским мастерством, йогой и свободного общения. Сведения о студиях — из статьи молодёжного совета; актуальное расписание можно уточнить в группе клуба.",
     },
   ),
   club(
@@ -407,7 +424,7 @@ export const places: Place[] = [
   ),
   club(
     "molodezhny",
-    "Молодёжный",
+    "Простор",
     "Улица Ленсовета, 10",
     [59.8553, 30.3312],
     ["sport", "creative", "music", "growth", "community"],
@@ -425,6 +442,18 @@ export const places: Place[] = [
       "Киношкола «Киностарт»",
     ],
     "creative",
+    {
+      kind: "Центр",
+      aliases: [
+        "Молодёжный",
+        "Молодежный",
+        "Центр молодёжных инициатив Простор",
+        "ЦМИ Простор",
+      ],
+      activitiesNeedConfirmation: true,
+      description:
+        "Центр молодёжных инициатив «Простор» работает вместо клуба «Молодёжный». Название и группа обновлены по уточнению молодёжного совета. Адрес, расписание и список занятий прежнего клуба требуют подтверждения после обновления центра.",
+    },
   ),
   club(
     "nadezhda",
@@ -568,20 +597,6 @@ export const places: Place[] = [
     ],
     "sport",
   ),
-  club(
-    "iskorka",
-    "Искорка",
-    "Алтайская улица, 37",
-    [59.8428, 30.3378],
-    [],
-    [],
-    "creative",
-    {
-      fromMap: true,
-      description:
-        "Клуб отмечен на предоставленной карте учреждений. Список студий и условия посещения ещё уточняются — свяжись с клубом перед визитом.",
-    },
-  ),
 ];
 
 // Телефоны из карты, предоставленной пользователем. Код города Санкт-Петербурга: 812.
@@ -600,7 +615,6 @@ const phones: Record<string, string> = {
   nadezhda: "417-50-73",
   rubin: "246-30-07",
   luch: "417-34-85",
-  iskorka: "417-30-10",
   yunost: "417-34-33",
   oktyabr: "417-32-31",
   vzlet: "417-48-39",
@@ -611,9 +625,69 @@ places.forEach((place) => {
   if (phones[place.id]) place.phone = `+7 (812) ${phones[place.id]}`;
 });
 
-export function normalize(value: string) {
-  return value.toLocaleLowerCase("ru").replaceAll("ё", "е").trim();
-}
+// Exact group names supplied with the source article. URLs stay unset until confirmed.
+const groupNames: Record<string, string> = {
+  pulkovec: "Дом молодежи Московского района Пулковец",
+  prosto: "Дом молодежи Московского района Пулковец",
+  patriot: "Центр патриотического воспитания молодежи Московского района",
+  avrora: "Клуб Аврора МПЦ Московский",
+  atlant: "Молодёжный клуб Атлант",
+  vertikal: "ВЕРТИКАЛЬ Московский район",
+  vzlet: "Молодёжный клуб Взлёт",
+  vostok: "ПМК Восток МПЦ Московский",
+  zvezdnaya: "Пространство На Звёздной",
+  kometa: "Клуб Комета в Московском районе",
+  kosmonavt: "Молодёжное пространство Космонавт",
+  kosmos: "Творческое пространство Космос",
+  luch: "Молодежное АРТ пространство LUCH",
+  molodezhny: "Центр молодежных инициатив Простор",
+  nadezhda: "Творческое молодёжное пространство Надежда",
+  neva: "Молодежное пространство Нева",
+  oktyabr: "ОКтябрь в Московском районе",
+  romantiki: "Клуб Романтики Московский район",
+  rubin: "Молодёжный клуб РУБИН Московский район",
+  sputnik: "Молодежный клуб Спутник Московский район",
+  start: "Молодёжный клуб Старт МПЦ Московский",
+  yunost: "Подростково Молодежный Клуб ЮНОСТЬ Московский район",
+};
+places.forEach((place) => {
+  if (groupNames[place.id]) place.vkGroupName = groupNames[place.id];
+});
+
+// Direct links supplied by the user. Unlabelled numeric groups are not guessed.
+export const DISTRICT_VK_URL = "https://vk.ru/zhit_v_moskovskom";
+const confirmedVkGroups: Record<string, string> = {
+  sputnik: "https://vk.ru/club156414892",
+  nadezhda: "https://vk.ru/club136795033",
+  vzlet: "https://vk.ru/club195350143",
+  neva: "https://vk.ru/pmknevaa",
+  avrora: "https://vk.ru/club192861109",
+  yunost: "https://vk.ru/club12164429",
+  start: "https://vk.ru/club139512151",
+  zvezdnaya: "https://vk.ru/mopstar16",
+  rubin: "https://vk.ru/rubin_club",
+  romantiki: "https://vk.ru/pmkromantiki",
+  oktyabr: "https://vk.ru/pmkoktiabr",
+  luch: "https://vk.ru/pmk_luch",
+  kosmos: "https://vk.ru/kosmos_pmk",
+  kometa: "https://vk.ru/pmkkometa",
+  vostok: "https://vk.ru/pmcvostok",
+  atlant: "https://vk.ru/pmk_atlant",
+  vertikal: "https://vk.ru/vertikal_klub",
+  kosmonavt: "https://vk.ru/klub_kosmonavt",
+  molodezhny: "https://vk.ru/cmiprostor",
+  pulkovec: "https://vk.ru/dmpulkovec",
+  patriot: "https://vk.ru/dmpulkovec",
+  prosto: "https://vk.ru/dmpulkovec",
+};
+places.forEach((place) => {
+  if (confirmedVkGroups[place.id]) place.vkUrl = confirmedVkGroups[place.id];
+  if (clubUpdates[place.id]) {
+    Object.assign(place, clubUpdates[place.id], { updatedProgramme: true });
+    if (place.kind === "Клуб" || place.id === "molodezhny")
+      place.hours = "Пн–сб · 16:00–22:00";
+  }
+});
 
 export function filterPlaces(
   query: string,
@@ -622,20 +696,18 @@ export function filterPlaces(
   favorites: string[],
   only360: boolean,
 ) {
-  const terms = normalize(query).split(/\s+/).filter(Boolean);
   return places.filter((place) => {
-    const haystack = normalize(
-      [
-        place.name,
-        place.address,
-        ...place.activities,
-        ...place.categories.map(
-          (id) => categories.find((c) => c.id === id)?.label,
-        ),
-      ].join(" "),
-    );
+    const haystack = [
+      place.name,
+      place.address,
+      ...(place.aliases || []),
+      ...place.activities,
+      ...place.categories.map(
+        (id) => categories.find((c) => c.id === id)?.label,
+      ),
+    ].join(" ");
     return (
-      terms.every((term) => haystack.includes(term)) &&
+      matchesSearch(query, haystack, place.activities) &&
       (!selectedCategories.length ||
         selectedCategories.some((id) => place.categories.includes(id))) &&
       (!favoritesOnly || favorites.includes(place.id)) &&
@@ -646,3 +718,18 @@ export function filterPlaces(
 
 export const routeUrl = (place: Place) =>
   `https://yandex.ru/maps/?text=${encodeURIComponent(`Санкт-Петербург, ${place.address}`)}`;
+
+export function vkLinkFor(place: Place) {
+  if (
+    place.vkUrl &&
+    /^https:\/\/(?:vk\.com|vk\.ru)\/[a-zA-Z0-9_.-]+\/?$/.test(place.vkUrl)
+  )
+    return { url: place.vkUrl, direct: true };
+  const params = new URLSearchParams({
+    "c[section]": "communities",
+    "c[q]":
+      place.vkGroupName ||
+      `${place.kind} ${place.name} Московский район Санкт-Петербург`,
+  });
+  return { url: `https://vk.ru/search?${params}`, direct: false };
+}
