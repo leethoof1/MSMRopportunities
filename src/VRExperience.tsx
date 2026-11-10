@@ -1,6 +1,5 @@
 import { lazy, Suspense, useCallback, useMemo, useState } from "react";
-import { ArrowLeft, ArrowUpRight, Map, MapPin, Search } from "lucide-react";
-import MapView from "./MapView";
+import { ArrowUpRight, MapPin, Search } from "lucide-react";
 import VRHeadsetIcon from "./VRHeadsetIcon";
 import { normalize, vkLinkFor, type Place } from "./data";
 const PanoramaTour = lazy(() => import("./PanoramaTour"));
@@ -9,7 +8,6 @@ type Props = {
   places: Place[];
   selected?: Place;
   onSelect: (id: string) => void;
-  theme: "light" | "dark";
   initialTour?: boolean;
 };
 
@@ -17,20 +15,19 @@ export default function VRExperience({
   places,
   selected,
   onSelect,
-  theme,
   initialTour,
 }: Props) {
-  const [tourId, setTourId] = useState<string | null>(
-    initialTour && selected?.tour ? selected.id : null,
-  );
-  const [mode, setMode] = useState<"map" | "vr">("map");
   const [query, setQuery] = useState("");
-  const [vrTourRequest, setVrTourRequest] = useState<{
-    id: string;
-    token: number;
-  }>();
+  const [vrTourRequest, setVrTourRequest] = useState<
+    | {
+        id: string;
+        token: number;
+      }
+    | undefined
+  >(() =>
+    initialTour && selected?.tour ? { id: selected.id, token: 0 } : undefined,
+  );
   const [onlyTours, setOnlyTours] = useState(false);
-  const activeTour = places.find((place) => place.id === tourId);
   const firstTour = places.find((place) => place.tour);
   const tours = places.filter((place) => place.tour).length;
   const visible = useMemo(
@@ -50,84 +47,29 @@ export default function VRExperience({
     },
     [onSelect],
   );
-  function returnToMap() {
-    setTourId(null);
-    setMode("map");
-  }
-  function choose(id: string) {
-    select(id);
-    if (tourId)
-      setTourId(places.find((place) => place.id === id)?.tour ? id : null);
-  }
   return (
     <div className="explore-content">
       <div className="explore-toolbar">
-        <div
-          className="explore-modes"
-          role="group"
-          aria-label="Способ просмотра пространств"
-        >
-          <button
-            aria-pressed={mode === "map" && !tourId}
-            onClick={returnToMap}
-          >
-            <Map size={17} />
-            Карта и клубы
-          </button>
-          <button
-            aria-pressed={mode === "vr"}
-            onClick={() => {
-              setMode("vr");
-              setTourId(null);
-            }}
-          >
-            <VRHeadsetIcon size={18} />
-            Макет района · VR
-          </button>
-        </div>
+        <span className="explore-vr-title">
+          <VRHeadsetIcon size={18} />
+          Карта района · VR
+        </span>
         <span>
           {places.length} пространства · туры 360°: {tours}
         </span>
       </div>
-      <div
-        className={`explore-layout ${tourId ? "is-tour" : ""} ${mode === "vr" ? "is-vr" : ""}`}
-      >
+      <div className="explore-layout is-vr">
         <div className="explore-stage">
-          <div
-            className="explore-map"
-            hidden={Boolean(tourId) || mode === "vr"}
-            aria-label="Карта каталога пространств"
-          >
-            <MapView
-              places={visible}
-              selected={selected?.id ?? null}
-              onSelect={select}
-              theme={theme}
-            />
-            {!selected && (
-              <div className="explore-map-hint">
-                Выбери клуб на карте или в списке
-              </div>
-            )}
-          </div>
           <Suspense
             fallback={<div className="vr-loading">Открываем пространство…</div>}
           >
-            {mode === "map" && activeTour?.tour && (
-              <PanoramaTour
-                key={activeTour.id}
-                place={activeTour}
-                onCatalogue={returnToMap}
-              />
-            )}
-            {mode === "vr" && firstTour && (
+            {firstTour && (
               <PanoramaTour
                 place={firstTour}
                 districtPlaces={places}
                 selectedPlaceId={selected?.id}
                 requestTour={vrTourRequest}
                 onSelectPlace={select}
-                onCatalogue={returnToMap}
               />
             )}
           </Suspense>
@@ -155,11 +97,9 @@ export default function VRExperience({
               {selected.tour ? (
                 <button
                   className="explore-enter"
-                  onClick={() => {
-                    if (mode === "vr")
-                      setVrTourRequest({ id: selected.id, token: Date.now() });
-                    else setTourId(selected.id);
-                  }}
+                  onClick={() =>
+                    setVrTourRequest({ id: selected.id, token: Date.now() })
+                  }
                 >
                   Заглянуть внутрь <ArrowUpRight size={17} />
                 </button>
@@ -207,7 +147,7 @@ export default function VRExperience({
                 className={selected?.id === place.id ? "is-selected" : ""}
                 aria-pressed={selected?.id === place.id}
                 aria-label={`Выбрать клуб: ${place.name}`}
-                onClick={() => choose(place.id)}
+                onClick={() => select(place.id)}
               >
                 <span className="explore-place-number">
                   {String(index + 1).padStart(2, "0")}
@@ -225,12 +165,6 @@ export default function VRExperience({
               </p>
             )}
           </div>
-          {tourId && (
-            <button className="explore-map-return" onClick={returnToMap}>
-              <ArrowLeft size={16} />
-              Вернуться на карту
-            </button>
-          )}
         </aside>
       </div>
     </div>

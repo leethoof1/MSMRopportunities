@@ -2997,3 +2997,12 @@ h1 > span:first-of-type {
     font-size: 11px;
   }
 }
+
+.explore-vr-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--purple);
+  font-size: 13px;
+  font-weight: 700;
+}

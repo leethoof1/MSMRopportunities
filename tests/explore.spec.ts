@@ -13,23 +13,33 @@ test.beforeEach(async ({ page }) => {
     .click();
 });
 
-test("map, list, search, and tour availability agree without paginated cards", async ({
+test("VR map opens directly and keeps search and tour availability in sync", async ({
   page,
 }, testInfo) => {
   const dialog = page.getByRole("dialog");
   await expect(dialog.locator(".explore-place-list > button")).toHaveCount(22);
-  await expect(dialog.locator(".place-pin")).toHaveCount(22);
-  await expect(dialog.locator("canvas")).toHaveCount(0);
+  await expect(
+    dialog.locator('[data-tour-scene="district"] canvas'),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Карта и клубы", exact: true }),
+  ).toHaveCount(0);
+  await expect(dialog.locator(".leaflet-container")).toHaveCount(0);
+  await expect(page.locator(".map-shell")).toHaveCount(1);
   if (testInfo.project.name === "desktop") {
     const bounds = (await dialog.boundingBox())!;
     expect(bounds.width).toBeGreaterThan(1300);
   }
-  await dialog.locator('.leaflet-marker-icon[title="Вертикаль"]').click();
+  await dialog
+    .getByRole("button", { name: "Выбрать клуб: Вертикаль", exact: true })
+    .click();
   await expect(
     dialog.getByRole("region", { name: "Выбрано: Вертикаль" }),
   ).toBeVisible();
   await expect(
-    dialog.getByText("Съёмка интерьера пока не добавлена", { exact: true }),
+    dialog
+      .getByRole("region", { name: "Выбрано: Вертикаль" })
+      .getByText("Съёмка интерьера пока не добавлена", { exact: true }),
   ).toBeVisible();
   await expect(
     dialog.getByRole("button", { name: "Заглянуть внутрь", exact: true }),
@@ -58,31 +68,25 @@ test("map, list, search, and tour availability agree without paginated cards", a
   await expect(dialog.locator(".vr-pagination")).toHaveCount(0);
 });
 
-test("returning from a panorama keeps the map instance, selection and zoom", async ({
+test("a panorama returns to the same VR map and fullscreen still works", async ({
   page,
 }) => {
   test.setTimeout(90000);
   const dialog = page.getByRole("dialog");
+  const scene = dialog.locator(".vr-scene");
+  await expect(scene).toHaveAttribute("data-tour-scene", "district");
+  const canvas = scene.locator("canvas");
+  await canvas.evaluate((element) =>
+    element.setAttribute("data-preserved-renderer", "yes"),
+  );
   await dialog
     .getByRole("button", { name: "Выбрать клуб: Нева", exact: true })
     .click();
-  const map = dialog.locator(".explore-map .map-canvas");
-  await map.evaluate((element) =>
-    element.setAttribute("data-preserved-map", "yes"),
-  );
-  const shell = dialog.locator(".explore-map .map-shell");
-  await expect(shell).toHaveAttribute("data-map-view", /z=15$/);
-  await dialog
-    .locator(".explore-map")
-    .getByRole("button", { name: "Приблизить карту" })
-    .click();
-  await expect(shell).toHaveAttribute("data-map-view", /z=16$/);
-  const view = await shell.getAttribute("data-map-view");
   await dialog
     .getByRole("button", { name: "Заглянуть внутрь", exact: true })
     .click();
-  await expect(dialog.locator('[data-panorama-state="ready"]')).toBeVisible();
-  await expect(dialog.locator(".explore-map")).toBeHidden();
+  await expect(scene).toHaveAttribute("data-panorama-state", "ready");
+  await expect(scene).toHaveAttribute("data-tour-scene", "entrance");
   if (test.info().project.name === "desktop") {
     await dialog
       .getByRole("button", { name: "На весь экран", exact: true })
@@ -98,23 +102,23 @@ test("returning from a panorama keeps the map instance, selection and zoom", asy
   await dialog
     .getByRole("button", { name: "Выбрать другой клуб", exact: true })
     .click();
-  await expect(map).toHaveAttribute("data-preserved-map", "yes");
+  await expect(scene).toHaveAttribute("data-tour-scene", "district");
+  await expect(canvas).toHaveAttribute("data-preserved-renderer", "yes");
   await expect(
     dialog.getByRole("region", { name: "Выбрано: Нева" }),
   ).toBeVisible();
-  await expect(shell).toHaveAttribute("data-map-view", view!);
+  await expect(
+    dialog.getByRole("button", { name: "Открыть обычную карту", exact: true }),
+  ).toHaveCount(0);
 });
 
-test("VR miniature shows every club and enters a tour without replacing its canvas", async ({
+test("curved VR map markers respond to clicks and preserve their renderer across a tour", async ({
   page,
 }) => {
   test.setTimeout(90000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const dialog = page.getByRole("dialog");
-  await dialog
-    .getByRole("button", { name: "Макет района · VR", exact: true })
-    .click();
   const scene = dialog.locator('[data-tour-scene="district"]');
   await expect(scene).toHaveAttribute("data-district-pins", "22");
   const canvas = scene.locator("canvas");
@@ -131,9 +135,12 @@ test("VR miniature shows every club and enters a tour without replacing its canv
   const bounds = (await canvas.boundingBox())!;
   for (const [x, y] of [
     [0.5, 0.5],
-    [0.5, 0.46],
-    [0.48, 0.52],
-    [0.52, 0.52],
+    [0.5, 0.58],
+    [0.48, 0.55],
+    [0.52, 0.55],
+    [0.5, 0.65],
+    [0.45, 0.6],
+    [0.55, 0.6],
   ]) {
     await page.mouse.click(
       bounds.x + bounds.width * x,
@@ -161,9 +168,5 @@ test("VR miniature shows every club and enters a tour without replacing its canv
     .click();
   await expect(scene).toBeVisible();
   await expect(canvas).toHaveAttribute("data-same-renderer", "yes");
-  await dialog
-    .getByRole("button", { name: "Открыть обычную карту", exact: true })
-    .click();
-  await expect(dialog.getByLabel("Карта каталога пространств")).toBeVisible();
   expect(errors).toEqual([]);
 });

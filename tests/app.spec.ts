@@ -240,7 +240,7 @@ test("real OSM is requested immediately and failure preserves the catalogue", as
   ).toBeVisible();
 });
 
-test("catalogue opens as a map with all spaces and no 3D pagination", async ({
+test("catalogue opens directly as a VR map with all spaces", async ({
   page,
 }) => {
   await page
@@ -250,9 +250,10 @@ test("catalogue opens as a map with all spaces and no 3D pagination", async ({
   await expect(
     dialog.getByRole("heading", { name: "Клубы изнутри", exact: true }),
   ).toBeVisible();
-  await expect(dialog.getByLabel("Карта каталога пространств")).toBeVisible();
+  await expect(dialog.getByLabel("VR-карта района")).toBeVisible();
   await expect(dialog.locator(".explore-place-list > button")).toHaveCount(22);
-  await expect(dialog.locator("canvas")).toHaveCount(0);
+  await expect(dialog.locator("canvas")).toBeVisible();
+  await expect(dialog.locator(".leaflet-container")).toHaveCount(0);
   await dialog
     .getByRole("button", { name: "Выбрать клуб: Нева", exact: true })
     .click();
@@ -336,7 +337,7 @@ test("Neva panorama loads, responds to dragging, and returns to the catalogue", 
   await dialog
     .getByRole("button", { name: "Выбрать другой клуб", exact: true })
     .click();
-  await expect(dialog.getByLabel("Карта каталога пространств")).toBeVisible();
+  await expect(dialog.getByLabel("VR-карта района")).toBeVisible();
   await expect(
     dialog.getByRole("region", { name: "Выбрано: Нева" }),
   ).toBeVisible();

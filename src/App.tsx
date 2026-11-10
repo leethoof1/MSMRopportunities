@@ -569,7 +569,6 @@ export default function App() {
               places={places}
               selected={selected}
               onSelect={selectPlace}
-              theme={theme}
               initialTour={exploreStartTour}
             />
           </Suspense>

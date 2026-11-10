@@ -24,7 +24,7 @@ function direction(u: number, v: number) {
 
 type Props = {
   place: Place;
-  onCatalogue: () => void;
+  onCatalogue?: () => void;
   districtPlaces?: Place[];
   onSelectPlace?: (id: string) => void;
   selectedPlaceId?: string;
@@ -70,7 +70,7 @@ export default function PanoramaTour({
       return;
     }
     if (document.fullscreenElement) void document.exitFullscreen();
-    onCatalogue();
+    onCatalogue?.();
   }
   const host = useRef<HTMLDivElement>(null);
   const hotspot = useRef<HTMLButtonElement>(null);
@@ -206,17 +206,21 @@ export default function PanoramaTour({
     const cameraPosition = new THREE.Vector3();
     const loader = new THREE.TextureLoader();
     function orient() {
-      camera.fov = showingMap ? 55 : 70;
-      camera.updateProjectionMatrix();
+      camera.fov = showingMap ? 62 : 70;
       if (showingMap) {
-        camera.position.set(
-          0,
-          renderer.xr.isPresenting ? 1.6 : 3.4,
-          renderer.xr.isPresenting ? 0 : 1.2,
+        const halfHorizontal = Math.atan(
+          Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect,
         );
-        camera.lookAt(0, 0.65, -2.8);
+        const distance = Math.max(
+          0.4,
+          (model!.halfWidth / Math.tan(halfHorizontal)) * 1.06 + model!.edgeZ,
+        );
+        camera.position.set(0, 1.65, renderer.xr.isPresenting ? 0 : distance);
+        camera.lookAt(0, 1.65, -3.4);
+        camera.updateProjectionMatrix();
         return;
       }
+      camera.updateProjectionMatrix();
       camera.position.set(0, 1.6, 0);
       const facing = direction(active.initialU, 0.5);
       camera.rotation.set(-0.04, Math.atan2(-facing.x, -facing.z), 0, "YXZ");
@@ -527,7 +531,7 @@ export default function PanoramaTour({
     let vrButton: HTMLElement | null = null;
     if (!navigator.xr && districtPlaces)
       setXrStatus(
-        "Макет доступен на экране. Для VR открой сайт в браузере совместимых очков.",
+        "Карта доступна на экране. Для VR открой сайт в браузере совместимых очков.",
       );
     if (navigator.xr && window.isSecureContext) {
       navigator.xr
@@ -541,7 +545,7 @@ export default function PanoramaTour({
             setXrStatus("В VR выбирай стрелки лучом контроллера.");
           } else if (districtPlaces)
             setXrStatus(
-              "Макет доступен на экране. VR можно включить в совместимых очках.",
+              "Карта доступна на экране. VR можно включить в совместимых очках.",
             );
         })
         .catch(() =>
@@ -553,6 +557,7 @@ export default function PanoramaTour({
         height = element.clientHeight;
       renderer.setSize(width, height);
       camera.aspect = width / height;
+      if (showingMap && !renderer.xr.isPresenting) orient();
       camera.updateProjectionMatrix();
     }
     const observer = new ResizeObserver(resize);
@@ -665,7 +670,7 @@ export default function PanoramaTour({
       <div className="vr-intro">
         <span>
           {mapMode
-            ? "Макет Московского района"
+            ? "VR-карта Московского района"
             : `Прогулка по клубу «${tourPlace.name}»`}
         </span>
         <p>
@@ -687,7 +692,7 @@ export default function PanoramaTour({
         className="vr-scene"
         ref={host}
         aria-label={
-          mapMode ? "Макет района для VR" : `Панорама 360°: ${tourPlace.name}`
+          mapMode ? "VR-карта района" : `Панорама 360°: ${tourPlace.name}`
         }
         data-district-pins={districtPlaces?.length}
         data-panorama-state={status}
@@ -785,10 +790,12 @@ export default function PanoramaTour({
           {fullscreen ? <Minimize size={15} /> : <Maximize size={15} />}{" "}
           {fullscreen ? "Свернуть" : "На весь экран"}
         </button>
-        <button onClick={catalogue}>
-          <ArrowLeft size={15} />
-          {mapMode ? "Открыть обычную карту" : "Выбрать другой клуб"}
-        </button>
+        {!mapMode && (
+          <button onClick={catalogue}>
+            <ArrowLeft size={15} />
+            Выбрать другой клуб
+          </button>
+        )}
       </div>
       {xrStatus && <p className="vr-status">{xrStatus}</p>}
     </div>

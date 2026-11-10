@@ -9,7 +9,7 @@ function mercator(latitude: number, longitude: number, zoom: number) {
   );
 }
 
-/** A geographic tabletop; markers use the same sourced coordinates as Leaflet. */
+/** An eye-level curved map; all pins follow the same projection as its tiles. */
 export function createDistrictModel(
   places: Place[],
   onPick: (place: Place) => void,
@@ -24,23 +24,57 @@ export function createDistrictModel(
   const pixels = places.map((place) =>
     mercator(...locationFor(place).coordinates, zoom),
   );
-  const left = Math.floor((Math.min(...pixels.map((p) => p.x)) - 70) / 256);
+
   const top = Math.floor((Math.min(...pixels.map((p) => p.y)) - 70) / 256);
-  const right = Math.floor((Math.max(...pixels.map((p) => p.x)) + 70) / 256);
+
   const bottom = Math.floor((Math.max(...pixels.map((p) => p.y)) + 70) / 256);
-  const pixelWidth = (right - left + 1) * 256,
-    pixelHeight = (bottom - top + 1) * 256;
-  const width = 3.3,
-    depth = (width * pixelHeight) / pixelWidth;
+  // Expand the visible extent horizontally, preserving the map's scale.
+  const rows = bottom - top + 1,
+    columns = rows * 2;
+  const middleX =
+    (Math.min(...pixels.map((p) => p.x)) +
+      Math.max(...pixels.map((p) => p.x))) /
+    2;
+  const left = Math.floor(middleX / 256 - columns / 2),
+    right = left + columns - 1;
+  const pixelWidth = columns * 256,
+    pixelHeight = rows * 256;
+  const width = 5.8,
+    height = 2.9,
+    radius = 3.4,
+    centerY = 1.65;
+  function onMap(u: number, v: number, lift = 0) {
+    const angle = ((u - 0.5) * width) / radius;
+    return new THREE.Vector3(
+      Math.sin(angle) * (radius - lift),
+      centerY + (0.5 - v) * height,
+      -Math.cos(angle) * (radius - lift),
+    );
+  }
+  function curvedGeometry(w: number, h: number, r: number) {
+    const geometry = new THREE.PlaneGeometry(w, h, 96, 32);
+    const positions = geometry.getAttribute("position");
+    for (let index = 0; index < positions.count; index++) {
+      const x = positions.getX(index),
+        y = positions.getY(index),
+        angle = x / r;
+      positions.setXYZ(
+        index,
+        Math.sin(angle) * r,
+        centerY + y,
+        -Math.cos(angle) * r,
+      );
+    }
+    geometry.computeVertexNormals();
+    return geometry;
+  }
   const board = new THREE.Group();
-  board.position.set(0, 0.65, -2.8);
   group.add(board);
-  const base = new THREE.Mesh(
-    new THREE.BoxGeometry(width + 0.08, 0.1, depth + 0.08),
-    new THREE.MeshStandardMaterial({ color: 0x685780, roughness: 0.8 }),
+  const frame = new THREE.Mesh(
+    curvedGeometry(width + 0.08, height + 0.08, radius + 0.04),
+    new THREE.MeshBasicMaterial({ color: 0x8c71a9, side: THREE.DoubleSide }),
   );
-  base.position.y = -0.06;
-  board.add(base);
+  board.add(frame);
   const mapCanvas = document.createElement("canvas");
   mapCanvas.width = pixelWidth;
   mapCanvas.height = pixelHeight;
@@ -65,10 +99,9 @@ export function createDistrictModel(
   mapTexture.colorSpace = THREE.SRGBColorSpace;
   textures.add(mapTexture);
   const surface = new THREE.Mesh(
-    new THREE.PlaneGeometry(width, depth),
+    curvedGeometry(width, height, radius),
     new THREE.MeshBasicMaterial({ map: mapTexture }),
   );
-  surface.rotation.x = -Math.PI / 2;
   board.add(surface);
   // Only tiles visible on this small board are fetched. No background region download.
   for (let x = left; x <= right; x++)
@@ -118,22 +151,26 @@ export function createDistrictModel(
       "Выбери метку клуба · все пространства на одной карте",
     ),
     side: THREE.DoubleSide,
+    transparent: true,
+    depthTest: false,
   });
-  const info = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.7, 0.675),
-    infoMaterial,
-  );
-  info.position.set(0, 1.85, -3);
+  const info = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 0.625), infoMaterial);
+  info.position.set(-0.5, 0.1, -3.1);
+  info.renderOrder = 10;
   group.add(info);
   const enterMaterial = new THREE.MeshBasicMaterial({
     map: label("Заглянуть внутрь →", "Открыть панораму 360°", true),
     side: THREE.DoubleSide,
+    transparent: true,
+    depthTest: false,
   });
   const enter = new THREE.Mesh(
     new THREE.PlaneGeometry(1.2, 0.3),
     enterMaterial,
   );
-  enter.position.set(0, 1.12, -1.4);
+  enter.position.set(1.85, 0.22, -2.65);
+  enter.renderOrder = 10;
+  enter.lookAt(0, 1.65, 0);
   enter.visible = false;
   enter.userData.activate = () => {
     if (selected?.tour) onEnter(selected);
@@ -146,7 +183,7 @@ export function createDistrictModel(
     const point = pixels[index];
     const actual = new THREE.Vector2(
       ((point.x - left * 256) / pixelWidth - 0.5) * width,
-      ((point.y - top * 256) / pixelHeight - 0.5) * depth,
+      ((point.y - top * 256) / pixelHeight - 0.5) * height,
     );
     let offset = actual.clone();
     for (
@@ -168,27 +205,23 @@ export function createDistrictModel(
     if (offset.distanceTo(actual) > 0.01) {
       const line = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(actual.x, 0.01, actual.y),
-          new THREE.Vector3(offset.x, 0.01, offset.y),
+          onMap(actual.x / width + 0.5, actual.y / height + 0.5, 0.012),
+          onMap(offset.x / width + 0.5, offset.y / height + 0.5, 0.012),
         ]),
         new THREE.LineBasicMaterial({ color: 0x746283 }),
       );
       board.add(line);
     }
     const pin = new THREE.Group();
-    pin.position.set(offset.x, 0, offset.y);
+    pin.position.copy(
+      onMap(offset.x / width + 0.5, offset.y / height + 0.5, 0.06),
+    );
     board.add(pin);
     pins.set(place.id, pin);
     const color = place.tour
       ? "#783aca"
       : (categories.find((category) => category.id === place.categories[0])
           ?.color ?? "#ab79cf");
-    const stem = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.025, 0.04, place.tour ? 0.22 : 0.12, 12),
-      new THREE.MeshStandardMaterial({ color }),
-    );
-    stem.position.y = place.tour ? 0.11 : 0.06;
-    pin.add(stem);
     const badgeCanvas = document.createElement("canvas");
     badgeCanvas.width = 256;
     badgeCanvas.height = 256;
@@ -215,7 +248,6 @@ export function createDistrictModel(
       new THREE.SpriteMaterial({ map: texture, depthTest: false }),
     );
     badge.scale.set(0.21, 0.21, 1);
-    badge.position.y = place.tour ? 0.32 : 0.22;
     badge.userData.placeId = place.id;
     badge.userData.activate = () => {
       select(place.id);
@@ -242,6 +274,8 @@ export function createDistrictModel(
   }
   return {
     group,
+    halfWidth: Math.sin(width / (2 * radius)) * radius,
+    edgeZ: -Math.cos(width / (2 * radius)) * radius,
     targets,
     select,
     dispose() {
