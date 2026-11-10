@@ -304,7 +304,8 @@ test("Neva panorama loads, responds to dragging, and returns to the catalogue", 
   const canvas = scene.locator("canvas");
   const before = await canvas.screenshot();
   const bounds = (await canvas.boundingBox())!;
-  const x = bounds.x + bounds.width / 2,
+  // Start beside the doorway marker, which is a separate clickable button.
+  const x = bounds.x + bounds.width * 0.22,
     y = bounds.y + bounds.height / 2;
   if (test.info().project.name === "mobile") {
     const cdp = await page.context().newCDPSession(page);
