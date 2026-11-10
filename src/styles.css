@@ -2566,3 +2566,434 @@ h1 > span:first-of-type {
   color: var(--purple);
   line-height: 1.5;
 }
+
+/* The desktop catalogue uses a native map and a single searchable list. */
+.explore-modal {
+  width: 1640px;
+  max-width: calc(100vw - 40px);
+  max-height: 95dvh;
+}
+.explore-content {
+  padding: 16px 20px 20px;
+}
+.explore-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.explore-toolbar > span {
+  font-size: 12px;
+  color: var(--muted, #74776e);
+}
+.explore-modes {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #f0edf5;
+}
+.explore-modes button {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  padding: 9px 13px;
+  border-radius: 7px;
+  font-size: 12px;
+  color: #70657e;
+}
+.explore-modes button[aria-pressed="true"] {
+  background: #fff;
+  color: var(--purple);
+  box-shadow: 0 2px 8px #3321410b;
+}
+.explore-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 18px;
+  height: min(74dvh, 880px);
+  min-height: 500px;
+}
+.explore-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+.explore-map {
+  height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+.explore-map[hidden] {
+  display: none;
+}
+.explore-map .map-shell,
+.explore-map .map-canvas {
+  height: 100%;
+  min-height: 0;
+}
+.explore-map-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 25px;
+  transform: translateX(-50%);
+  z-index: 450;
+  padding: 10px 14px;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 3px 20px #33214122;
+  font-size: 12px;
+  max-width: 80%;
+  text-align: center;
+  pointer-events: none;
+}
+.explore-sidebar {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.explore-selected {
+  padding: 17px;
+  border-bottom: 1px solid var(--line);
+  background: #faf8fd;
+}
+.explore-selection-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 7px;
+  align-items: center;
+  color: #897c98;
+  font-size: 10px;
+}
+.explore-selected h3 {
+  font-size: 25px;
+  letter-spacing: -0.7px;
+  margin: 7px 0 9px;
+}
+.explore-selected p {
+  font-size: 12px;
+  line-height: 1.6;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: #726b7c;
+}
+.explore-selected p svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.explore-selected .explore-activities {
+  margin: 8px 0 12px;
+  font-size: 11px;
+}
+.explore-enter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  padding: 11px 14px;
+  background: #783aca;
+  color: #fff;
+  font-weight: 650;
+  font-size: 13px;
+  border-radius: 8px;
+  width: 100%;
+}
+.explore-enter:hover {
+  background: #6530ac;
+}
+.explore-selected > a {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--purple);
+  margin-top: 11px;
+}
+.explore-no-tour {
+  margin: 10px 0;
+}
+.explore-search {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.explore-search label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  color: #8a7c96;
+}
+.explore-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+}
+.explore-search > button {
+  align-self: flex-start;
+  padding: 6px 9px;
+  font-size: 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--purple);
+}
+.explore-search > button[aria-pressed="true"] {
+  background: #783aca;
+  border-color: #783aca;
+  color: #fff;
+}
+.explore-search > span {
+  font-size: 11px;
+  color: #8a7c96;
+  display: flex;
+  justify-content: space-between;
+}
+.explore-place-list {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+.explore-place-list > button {
+  display: flex;
+  width: 100%;
+  text-align: left;
+  align-items: center;
+  gap: 10px;
+  padding: 13px;
+  border-bottom: 1px solid var(--line);
+}
+.explore-place-list > button:hover {
+  background: #f6f2fc;
+}
+.explore-place-list > button.is-selected {
+  background: #efe7fa;
+  box-shadow: inset 3px 0 #783aca;
+}
+.explore-place-number {
+  color: #a59bb1;
+  font-size: 10px;
+  width: 19px;
+  flex-shrink: 0;
+}
+.explore-place-list strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+}
+.explore-place-list small {
+  display: block;
+  color: #8a7c96;
+  font-size: 10px;
+  line-height: 1.5;
+  margin-top: 3px;
+}
+.explore-tour-badge {
+  flex-shrink: 0;
+  padding: 4px 6px;
+  border-radius: 5px;
+  font-size: 9px;
+  color: #783aca;
+  background: #e9ddfa;
+}
+.explore-place-list .explore-tour-badge {
+  margin-left: auto;
+}
+.explore-empty {
+  padding: 18px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #8a7c96;
+}
+.explore-map-return {
+  padding: 12px;
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--purple);
+  border-top: 1px solid var(--line);
+}
+.explore-stage > .panorama-tour {
+  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.explore-stage .vr-scene {
+  flex: 1;
+  min-height: 230px;
+  height: auto;
+}
+.explore-stage .vr-intro {
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.explore-stage .vr-intro > span {
+  font-size: 12px;
+}
+.explore-stage .tour-scene-heading {
+  font-size: 13px;
+}
+.explore-stage .tour-tools {
+  flex-shrink: 0;
+  padding-top: 9px;
+}
+.explore-stage .tour-room-nav {
+  margin-top: 5px;
+}
+.explore-stage .tour-room-nav button {
+  font-size: 11px;
+  padding: 8px 11px;
+}
+.explore-stage .tour-detail-status {
+  margin-top: 4px;
+}
+.district-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 11px;
+}
+.district-summary > strong {
+  font-size: 16px;
+}
+.district-summary > span {
+  color: #8a7c96;
+}
+.district-summary .explore-enter {
+  width: auto;
+  padding: 8px 12px;
+  font-size: 11px;
+}
+.district-summary > a {
+  font-size: 9px;
+  margin-left: auto;
+  color: #8a7c96;
+}
+.tour-vr-button {
+  z-index: 4;
+}
+.panorama-tour:fullscreen {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  height: 100dvh;
+  background: #fff;
+  overflow: auto;
+}
+.panorama-tour:fullscreen .vr-scene {
+  height: auto;
+  flex: 1;
+  min-height: 220px;
+}
+[data-theme="dark"] .explore-modes {
+  background: #272532;
+}
+[data-theme="dark"] .explore-modes button[aria-pressed="true"],
+[data-theme="dark"] .explore-map-hint {
+  background: #34313f;
+  color: #dbc3fc;
+}
+[data-theme="dark"] .explore-selected {
+  background: #24222d;
+}
+[data-theme="dark"] .explore-place-list > button:hover {
+  background: #302938;
+}
+[data-theme="dark"] .explore-place-list > button.is-selected {
+  background: #3b2c4d;
+}
+[data-theme="dark"] .panorama-tour:fullscreen {
+  background: #181b20;
+}
+@media (max-width: 760px) {
+  .explore-modal {
+    max-width: calc(100vw - 16px);
+    max-height: 95dvh;
+  }
+  .explore-content {
+    padding: 12px;
+  }
+  .explore-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .explore-modes {
+    width: 100%;
+  }
+  .explore-modes button {
+    flex: 1;
+    justify-content: center;
+    padding: 9px 5px;
+    font-size: 11px;
+  }
+  .explore-toolbar > span {
+    font-size: 10px;
+  }
+  .explore-layout {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 0;
+    gap: 12px;
+  }
+  .explore-stage {
+    height: 48dvh;
+    min-height: 350px;
+  }
+  .explore-layout.is-tour .explore-stage,
+  .explore-layout.is-vr .explore-stage {
+    height: auto;
+  }
+  .explore-stage > .panorama-tour {
+    height: auto;
+  }
+  .explore-stage .vr-scene {
+    height: 44dvh;
+    min-height: 290px;
+    flex: auto;
+  }
+  .explore-stage .vr-intro {
+    align-items: flex-start;
+  }
+  .explore-stage .vr-intro > span {
+    white-space: normal;
+  }
+  .explore-sidebar {
+    max-height: 640px;
+  }
+  .explore-place-list {
+    max-height: 330px;
+    min-height: 130px;
+  }
+  .explore-selected {
+    padding: 14px;
+  }
+  .explore-selected h3 {
+    font-size: 22px;
+  }
+  .explore-stage .tour-tools {
+    gap: 10px;
+  }
+  .explore-stage .tour-tools button {
+    font-size: 11px;
+  }
+}

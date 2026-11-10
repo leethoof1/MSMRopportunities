@@ -76,7 +76,10 @@ export default function RasterMapView({
     };
     instance.on("moveend zoomend", updateMapLink);
     updateMapLink();
-    const observer = new ResizeObserver(() => instance.invalidateSize());
+    const observer = new ResizeObserver(() => {
+      if (container.current?.clientWidth && container.current?.clientHeight)
+        instance.invalidateSize({ pan: false });
+    });
     observer.observe(container.current);
     return () => {
       observer.disconnect();
@@ -219,6 +222,7 @@ export default function RasterMapView({
       className="map-shell"
       data-map-provider={provider}
       data-map-theme={theme}
+      data-map-view={mapHref}
     >
       <div
         className="map-canvas"

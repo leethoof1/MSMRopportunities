@@ -92,6 +92,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(initialPlace);
   const [view, setView] = useState<"map" | "list">("map");
   const [modal, setModal] = useState<"about" | "vr" | null>(null);
+  const [exploreStartTour, setExploreStartTour] = useState(false);
   const [toast, setToast] = useState("");
   const filtered = useMemo(
     () =>
@@ -137,13 +138,13 @@ export default function App() {
     return () => window.clearTimeout(timeout);
   }, [toast]);
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId || modal) return;
     const listener = (event: KeyboardEvent) => {
       if (event.key === "Escape") setSelectedId(null);
     };
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
-  }, [selectedId]);
+  }, [selectedId, modal]);
 
   const toggleFavorite = (id: string) =>
     setFavorites((current) =>
@@ -199,11 +200,14 @@ export default function App() {
         <ThemeSwitch preference={preference} onChange={changePreference} />
         <button
           className="vr-nav"
-          aria-label="Заглянуть в VR"
-          onClick={() => setModal("vr")}
+          aria-label="Клубы изнутри"
+          onClick={() => {
+            setExploreStartTour(false);
+            setModal("vr");
+          }}
         >
           <VRHeadsetIcon size={20} />
-          <span>Заглянуть в VR</span>
+          <span>Клубы изнутри</span>
           <ArrowUpRight size={16} />
         </button>
       </header>
@@ -441,7 +445,10 @@ export default function App() {
                   favorite={favorites.includes(selected.id)}
                   onClose={() => setSelectedId(null)}
                   onFavorite={() => toggleFavorite(selected.id)}
-                  onVR={() => setModal("vr")}
+                  onVR={() => {
+                    setExploreStartTour(true);
+                    setModal("vr");
+                  }}
                   onToast={setToast}
                 />
               )}
@@ -458,7 +465,10 @@ export default function App() {
                   favorite={favorites.includes(selected.id)}
                   onClose={() => setSelectedId(null)}
                   onFavorite={() => toggleFavorite(selected.id)}
-                  onVR={() => setModal("vr")}
+                  onVR={() => {
+                    setExploreStartTour(true);
+                    setModal("vr");
+                  }}
                   onToast={setToast}
                 />
               </div>
@@ -546,23 +556,21 @@ export default function App() {
       )}
       {modal === "vr" && (
         <Modal
-          title="Другое измерение возможностей"
+          title="Клубы изнутри"
           onClose={closeModal}
-          className="vr-modal"
+          className="vr-modal explore-modal"
         >
           <Suspense
             fallback={
-              <div className="vr-loading">
-                Собираем виртуальное пространство…
-              </div>
+              <div className="vr-loading">Открываем карту пространств…</div>
             }
           >
             <VRExperience
-              places={filtered.length ? filtered : places}
+              places={places}
               selected={selected}
-              onSelect={(id) => {
-                selectPlace(id);
-              }}
+              onSelect={selectPlace}
+              theme={theme}
+              initialTour={exploreStartTour}
             />
           </Suspense>
         </Modal>
@@ -776,7 +784,7 @@ function PlaceDetail({
             </span>
           </div>
           <button onClick={onVR}>
-            {place.panorama ? "Смотреть 360°" : "VR-каталог"}{" "}
+            {place.panorama ? "Смотреть 360°" : "Карта пространств"}{" "}
             <ArrowUpRight size={16} />
           </button>
         </div>

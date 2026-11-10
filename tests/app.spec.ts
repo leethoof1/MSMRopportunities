@@ -240,35 +240,30 @@ test("real OSM is requested immediately and failure preserves the catalogue", as
   ).toBeVisible();
 });
 
-test("VR catalogue renders and supports accessible card selection", async ({
+test("catalogue opens as a map with all spaces and no 3D pagination", async ({
   page,
 }) => {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.getByRole("button", { name: "Заглянуть в VR" }).click();
+  await page
+    .getByRole("button", { name: "Клубы изнутри", exact: true })
+    .click();
   const dialog = page.getByRole("dialog");
   await expect(
-    dialog.getByText("Виртуальный каталог", { exact: true }),
+    dialog.getByRole("heading", { name: "Клубы изнутри", exact: true }),
   ).toBeVisible();
-  await expect(dialog.locator("canvas")).toBeVisible();
-  const canvas = dialog.locator("canvas");
-  const size = await canvas.boundingBox();
-  await canvas.click({
-    position: { x: size!.width / 2, y: size!.height * 0.35 },
-  });
-  await expect(dialog.locator(".vr-selected")).toContainText("Пулковец");
+  await expect(dialog.getByLabel("Карта каталога пространств")).toBeVisible();
+  await expect(dialog.locator(".explore-place-list > button")).toHaveCount(22);
+  await expect(dialog.locator("canvas")).toHaveCount(0);
   await dialog
-    .getByRole("button", { name: "На Звёздной", exact: true })
+    .getByRole("button", { name: "Выбрать клуб: Нева", exact: true })
     .click();
-  await expect(dialog.locator(".vr-selected")).toContainText(
-    "Академический рисунок",
-  );
-  await dialog.getByRole("button", { name: "Следующие места в VR" }).click();
-  await expect(dialog.locator(".vr-pagination")).toContainText("2 / 4");
-  await page.screenshot({ path: "/tmp/msmr-vr.png" });
+  await expect(
+    dialog.getByRole("region", { name: "Выбрано: Нева" }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Заглянуть внутрь", exact: true }),
+  ).toBeVisible();
   await dialog.getByRole("button", { name: "Закрыть окно" }).click();
   await expect(dialog).toHaveCount(0);
-  expect(errors).toEqual([]);
 });
 
 test("captures the layout and detail at this device size", async ({
@@ -338,15 +333,16 @@ test("Neva panorama loads, responds to dragging, and returns to the catalogue", 
     .poll(async () => (await canvas.screenshot()).equals(afterDrag))
     .toBe(false);
   await expect(dialog.locator(".vr-pagination")).toHaveCount(0);
-  await dialog.getByRole("button", { name: "К каталогу пространств" }).click();
-  await expect(dialog.locator(".vr-pagination")).toBeVisible();
+  await dialog
+    .getByRole("button", { name: "Выбрать другой клуб", exact: true })
+    .click();
+  await expect(dialog.getByLabel("Карта каталога пространств")).toBeVisible();
   await expect(
-    dialog.getByLabel("Интерактивный трёхмерный каталог", { exact: true }),
+    dialog.getByRole("region", { name: "Выбрано: Нева" }),
   ).toBeVisible();
-  // Select Neva from the accessible catalogue and enter the panorama again.
-  await dialog.getByRole("button", { name: "Следующие места в VR" }).click();
-  await dialog.getByRole("button", { name: "Следующие места в VR" }).click();
-  await dialog.getByRole("button", { name: "Нева", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "Заглянуть внутрь", exact: true })
+    .click();
   await expect(scene).toHaveAttribute("data-panorama-state", "ready");
   expect(errors).toEqual([]);
 });

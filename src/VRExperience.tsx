@@ -1,540 +1,238 @@
-import { useEffect, useRef, useState } from "react";
-import * as THREE from "three";
-import { VRButton } from "three/addons/webxr/VRButton.js";
-import { ArrowLeft, ArrowRight, MapPin } from "lucide-react";
-import type { Place } from "./data";
+import { lazy, Suspense, useCallback, useMemo, useState } from "react";
+import { ArrowLeft, ArrowUpRight, Map, MapPin, Search } from "lucide-react";
+import MapView from "./MapView";
 import VRHeadsetIcon from "./VRHeadsetIcon";
-import PanoramaTour from "./PanoramaTour";
+import { normalize, vkLinkFor, type Place } from "./data";
+const PanoramaTour = lazy(() => import("./PanoramaTour"));
 
 type Props = {
   places: Place[];
   selected?: Place;
   onSelect: (id: string) => void;
+  theme: "light" | "dark";
+  initialTour?: boolean;
 };
 
-export default function VRExperience({ places, selected, onSelect }: Props) {
-  const [catalogue, setCatalogue] = useState(false);
-  if (selected?.tour && !catalogue)
-    return (
-      <PanoramaTour
-        key={selected.id}
-        place={selected}
-        onCatalogue={() => setCatalogue(true)}
-      />
-    );
-  return (
-    <CatalogueExperience
-      places={places}
-      selected={selected?.tour ? undefined : selected}
-      onSelect={(id) => {
-        setCatalogue(false);
-        onSelect(id);
-      }}
-    />
+export default function VRExperience({
+  places,
+  selected,
+  onSelect,
+  theme,
+  initialTour,
+}: Props) {
+  const [tourId, setTourId] = useState<string | null>(
+    initialTour && selected?.tour ? selected.id : null,
   );
-}
-
-function CatalogueExperience({ places, selected, onSelect }: Props) {
-  const host = useRef<HTMLDivElement>(null);
-  const selectRef = useRef(onSelect);
-  selectRef.current = onSelect;
-  const [page, setPage] = useState(0);
-  const [error, setError] = useState("");
-  const [xrStatus, setXrStatus] = useState("Проверяем поддержку VR…");
-  const [viewingPanorama, setViewingPanorama] = useState(true);
-  const [panoramaState, setPanoramaState] = useState("loading");
-  const panoramaUrl = viewingPanorama ? selected?.panorama : undefined;
-  const pageCount = Math.ceil(places.length / 6);
-
-  useEffect(() => {
-    const element = host.current!;
-    let renderer: THREE.WebGLRenderer;
-    try {
-      renderer = new THREE.WebGLRenderer({ antialias: true });
-    } catch {
-      setError(
-        "В этом браузере недоступен WebGL. Каталог мест остаётся доступен ниже.",
-      );
-      return;
-    }
-    setError("");
-    setPanoramaState("loading");
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.xr.enabled = true;
-    element.appendChild(renderer.domElement);
-    renderer.domElement.tabIndex = 0;
-    renderer.domElement.setAttribute(
-      "aria-label",
-      "Обзор: перетаскивай изображение или используй стрелки",
-    );
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#161426");
-    scene.fog = new THREE.Fog("#161426", 6, 24);
-    const camera = new THREE.PerspectiveCamera(65, 1, 0.1, 40);
-    camera.position.set(0, 1.6, 0);
-    scene.add(new THREE.HemisphereLight("#ded8ff", "#352c5b", 3));
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(18, 64),
-      new THREE.MeshStandardMaterial({ color: "#242034", roughness: 0.8 }),
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -0.1;
-    scene.add(floor);
-    const grid = new THREE.GridHelper(28, 28, "#6d508b", "#363047");
-    grid.position.y = -0.09;
-    scene.add(grid);
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(2.6, 0.015, 8, 100),
-      new THREE.MeshBasicMaterial({ color: "#cfb5fc" }),
-    );
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = -0.05;
-    scene.add(ring);
-
-    const raycaster = new THREE.Raycaster();
-    const pointer = new THREE.Vector2();
-    const targets: THREE.Mesh[] = [];
-    const textures = new Set<THREE.Texture>();
-    const group = new THREE.Group();
-    scene.add(group);
-    const infoPanel = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.9, 0.55),
-      new THREE.MeshBasicMaterial({
-        transparent: true,
-        side: THREE.DoubleSide,
-      }),
-    );
-    infoPanel.position.set(0, 0.35, -2.8);
-    infoPanel.visible = false;
-    scene.add(infoPanel);
-
-    function texture(lines: string[], color = "#eee7fa", subtitle = "") {
-      const canvas = document.createElement("canvas");
-      canvas.width = 1024;
-      canvas.height = 512;
-      const ctx = canvas.getContext("2d")!;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.roundRect(0, 0, 1024, 512, 42);
-      ctx.fill();
-      ctx.fillStyle = "#783aca";
-      ctx.font = "24px sans-serif";
-      ctx.fillText("МОСКОВСКИЙ РАЙОН / МЕСТА ДЛЯ ТЕБЯ", 56, 68);
-      ctx.fillStyle = "#231c35";
-      ctx.font = "bold 54px sans-serif";
-      lines
-        .slice(0, 3)
-        .forEach((line, index) =>
-          ctx.fillText(line, 56, 158 + index * 65, 910),
-        );
-      ctx.fillStyle = "#61576e";
-      ctx.font = "27px sans-serif";
-      ctx.fillText(subtitle, 56, 415, 910);
-      const result = new THREE.CanvasTexture(canvas);
-      result.colorSpace = THREE.SRGBColorSpace;
-      textures.add(result);
-      return result;
-    }
-    function wrap(text: string, length = 24) {
-      const output: string[] = [];
-      let line = "";
-      for (const word of text.split(" ")) {
-        if ((line + word).length > length && line) {
-          output.push(line);
-          line = "";
-        }
-        line += `${word} `;
-      }
-      if (line) output.push(line.trim());
-      return output;
-    }
-    function info(place: Place) {
-      infoPanel.visible = true;
-      const material = infoPanel.material as THREE.MeshBasicMaterial;
-      if (material.map) {
-        material.map.dispose();
-        textures.delete(material.map);
-      }
-      material.map = texture(
-        [
-          place.name,
-          ...wrap(place.activities.slice(0, 3).join(" · "), 45),
-        ].slice(0, 3),
-        "#dfedb5",
-        place.address,
-      );
-      material.needsUpdate = true;
-    }
-    function buildCards(pageIndex: number) {
-      for (const mesh of [...group.children]) {
-        group.remove(mesh);
-        if (mesh instanceof THREE.Mesh) {
-          mesh.geometry.dispose();
-          const material = mesh.material as THREE.MeshBasicMaterial;
-          if (material.map) {
-            material.map.dispose();
-            textures.delete(material.map);
-          }
-          material.dispose();
-        }
-      }
-      targets.length = 0;
-      places.slice(pageIndex * 6, pageIndex * 6 + 6).forEach((place, index) => {
-        const angle = ((index % 3) - 1) * 0.52;
-        const card = new THREE.Mesh(
-          new THREE.PlaneGeometry(1.4, 0.7),
-          new THREE.MeshBasicMaterial({
-            map: texture(
-              wrap(place.name),
-              index % 2 ? "#e8dcf8" : "#f6e8f2",
-              place.kind,
-            ),
-            side: THREE.DoubleSide,
-          }),
-        );
-        card.position.set(
-          Math.sin(angle) * 3.4,
-          index < 3 ? 2.25 : 1.38,
-          -Math.cos(angle) * 3.4,
-        );
-        card.lookAt(0, card.position.y, 0);
-        card.userData = { placeId: place.id };
-        group.add(card);
-        targets.push(card);
-      });
-      for (const direction of [-1, 1]) {
-        const button = new THREE.Mesh(
-          new THREE.PlaneGeometry(0.8, 0.35),
-          new THREE.MeshBasicMaterial({
-            map: texture(
-              [direction === -1 ? "← Назад" : "Дальше →"],
-              "#d7f1ab",
-              `${pageIndex + 1} / ${pageCount}`,
-            ),
-            side: THREE.DoubleSide,
-          }),
-        );
-        button.position.set(direction * 1.2, 0.6, -3.3);
-        button.userData = { direction };
-        group.add(button);
-        targets.push(button);
-      }
-    }
-    let currentPage = Math.min(page, pageCount - 1);
-    buildCards(currentPage);
-    if (selected) info(selected);
-    function activate(target: THREE.Object3D) {
-      if (typeof target.userData.direction === "number") {
-        currentPage =
-          (currentPage + target.userData.direction + pageCount) % pageCount;
-        buildCards(currentPage);
-      } else {
-        const place = places.find(
-          (item) => item.id === target.userData.placeId,
-        );
-        if (place) {
-          setViewingPanorama(true);
-          selectRef.current(place.id);
-          info(place);
-        }
-      }
-    }
-    let dragging = false,
-      moved = false,
-      previousX = 0,
-      previousY = 0;
-    camera.rotation.order = "YXZ";
-    function onDown(event: PointerEvent) {
-      dragging = true;
-      moved = false;
-      previousX = event.clientX;
-      previousY = event.clientY;
-      renderer.domElement.setPointerCapture(event.pointerId);
-    }
-    function onMove(event: PointerEvent) {
-      if (!dragging || renderer.xr.isPresenting) return;
-      const dx = event.clientX - previousX,
-        dy = event.clientY - previousY;
-      if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
-      if (moved) {
-        camera.rotation.y -= dx * 0.004;
-        camera.rotation.x = THREE.MathUtils.clamp(
-          camera.rotation.x - dy * 0.004,
-          -1.15,
-          1.15,
-        );
-      }
-      previousX = event.clientX;
-      previousY = event.clientY;
-    }
-    function onCancel() {
-      dragging = false;
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (renderer.xr.isPresenting) return;
-      if (
-        !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)
-      )
-        return;
-      event.preventDefault();
-      if (event.key === "ArrowLeft") camera.rotation.y += 0.12;
-      if (event.key === "ArrowRight") camera.rotation.y -= 0.12;
-      if (event.key === "ArrowUp") camera.rotation.x += 0.12;
-      if (event.key === "ArrowDown") camera.rotation.x -= 0.12;
-      camera.rotation.x = THREE.MathUtils.clamp(camera.rotation.x, -1.15, 1.15);
-    }
-    function onClick(event: PointerEvent) {
-      dragging = false;
-      if (renderer.xr.isPresenting || moved) return;
-      const rect = renderer.domElement.getBoundingClientRect();
-      pointer.set(
-        ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        (-(event.clientY - rect.top) / rect.height) * 2 + 1,
-      );
-      raycaster.setFromCamera(pointer, camera);
-      const hit = raycaster.intersectObjects(targets)[0];
-      if (hit) activate(hit.object);
-    }
-    renderer.domElement.style.touchAction = "none";
-    renderer.domElement.addEventListener("pointerdown", onDown);
-    renderer.domElement.addEventListener("pointermove", onMove);
-    renderer.domElement.addEventListener("pointercancel", onCancel);
-    renderer.domElement.addEventListener("pointerup", onClick);
-    renderer.domElement.addEventListener("keydown", onKeyDown);
-    for (let i = 0; i < 2; i++) {
-      const controller = renderer.xr.getController(i);
-      const line = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(0, 0, 0),
-          new THREE.Vector3(0, 0, -5),
-        ]),
-        new THREE.LineBasicMaterial({ color: "#d7f1ab" }),
-      );
-      controller.add(line);
-      controller.addEventListener("select", () => {
-        const rotation = new THREE.Matrix4().extractRotation(
-          controller.matrixWorld,
-        );
-        raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-        raycaster.ray.direction.set(0, 0, -1).applyMatrix4(rotation);
-        const hit = raycaster.intersectObjects(targets)[0];
-        if (hit) activate(hit.object);
-      });
-      scene.add(controller);
-    }
-
-    let disposed = false;
-    let vrButton: HTMLElement | null = null;
-    if (!window.isSecureContext)
-      setXrStatus("Для VR-очков открой сайт по HTTPS.");
-    else if (!navigator.xr)
-      setXrStatus(
-        "Просмотр доступен мышью или касанием. Для VR используй совместимые очки.",
-      );
-    else
-      navigator.xr
-        .isSessionSupported("immersive-vr")
-        .then((supported) => {
-          if (disposed) return;
-          setXrStatus(
-            supported
-              ? "VR доступен. Надень очки и нажми ENTER VR. Выбирай карточки лучом контроллера."
-              : "Используй браузер VR-очков с поддержкой WebXR. Здесь работает просмотр на экране.",
-          );
-          if (supported) {
-            vrButton = VRButton.createButton(renderer);
-            element.appendChild(vrButton);
-          }
-        })
-        .catch(() => {
-          if (!disposed)
-            setXrStatus(
-              "Браузер не разрешил проверку WebXR. Каталог доступен на экране.",
-            );
-        });
-
-    function resize() {
-      const width = element.clientWidth,
-        height = element.clientHeight;
-      renderer.setSize(width, height);
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-    }
-    const observer = new ResizeObserver(resize);
-    observer.observe(element);
-    resize();
-    renderer.setAnimationLoop(() => renderer.render(scene, camera));
-
-    if (panoramaUrl) {
-      new THREE.TextureLoader().load(
-        panoramaUrl,
-        (panorama) => {
-          if (disposed) {
-            panorama.dispose();
-            return;
-          }
-          textures.add(panorama);
-          panorama.colorSpace = THREE.SRGBColorSpace;
-          const sphere = new THREE.Mesh(
-            new THREE.SphereGeometry(15, 64, 40),
-            new THREE.MeshBasicMaterial({
-              map: panorama,
-              side: THREE.FrontSide,
-              fog: false,
-            }),
-          );
-          // Invert the sphere so the interior photo is not mirrored.
-          sphere.geometry.scale(-1, 1, 1);
-          sphere.position.y = 1.6;
-          sphere.rotation.y = Math.PI;
-          scene.add(sphere);
-          targets.length = 0;
-          group.visible = false;
-          floor.visible = false;
-          grid.visible = false;
-          ring.visible = false;
-          infoPanel.visible = false;
-          setPanoramaState("ready");
-        },
-        undefined,
-        () => {
-          if (!disposed) {
-            setPanoramaState("error");
-            setError(
-              "Не удалось загрузить панораму. Попробуй открыть её ещё раз.",
-            );
-          }
-        },
-      );
-    }
-
-    return () => {
-      disposed = true;
-      observer.disconnect();
-      renderer.setAnimationLoop(null);
-      const session = renderer.xr.getSession();
-      if (session) void session.end().catch(() => {});
-      renderer.domElement.removeEventListener("pointerup", onClick);
-      renderer.domElement.removeEventListener("pointerdown", onDown);
-      renderer.domElement.removeEventListener("pointermove", onMove);
-      renderer.domElement.removeEventListener("pointercancel", onCancel);
-      renderer.domElement.removeEventListener("keydown", onKeyDown);
-      scene.traverse((object) => {
-        if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
-          object.geometry.dispose();
-          const materials = Array.isArray(object.material)
-            ? object.material
-            : [object.material];
-          materials.forEach((material) => material.dispose());
-        }
-      });
-      textures.forEach((item) => item.dispose());
-      renderer.dispose();
-      renderer.domElement.remove();
-      vrButton?.remove();
-    };
-    // Selection updates the HTML summary; card clicks also update the scene without recreating the XR session.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [places, page, pageCount, panoramaUrl]);
-
+  const [mode, setMode] = useState<"map" | "vr">("map");
+  const [query, setQuery] = useState("");
+  const [vrTourRequest, setVrTourRequest] = useState<{
+    id: string;
+    token: number;
+  }>();
+  const [onlyTours, setOnlyTours] = useState(false);
+  const activeTour = places.find((place) => place.id === tourId);
+  const firstTour = places.find((place) => place.tour);
+  const tours = places.filter((place) => place.tour).length;
+  const visible = useMemo(
+    () =>
+      places.filter(
+        (place) =>
+          (!onlyTours || place.tour) &&
+          normalize(`${place.name} ${place.address}`).includes(
+            normalize(query),
+          ),
+      ),
+    [places, query, onlyTours],
+  );
+  const select = useCallback(
+    (id: string) => {
+      onSelect(id);
+    },
+    [onSelect],
+  );
+  function returnToMap() {
+    setTourId(null);
+    setMode("map");
+  }
+  function choose(id: string) {
+    select(id);
+    if (tourId)
+      setTourId(places.find((place) => place.id === id)?.tour ? id : null);
+  }
   return (
-    <div className="vr-content">
-      <div className="vr-intro">
+    <div className="explore-content">
+      <div className="explore-toolbar">
+        <div
+          className="explore-modes"
+          role="group"
+          aria-label="Способ просмотра пространств"
+        >
+          <button
+            aria-pressed={mode === "map" && !tourId}
+            onClick={returnToMap}
+          >
+            <Map size={17} />
+            Карта и клубы
+          </button>
+          <button
+            aria-pressed={mode === "vr"}
+            onClick={() => {
+              setMode("vr");
+              setTourId(null);
+            }}
+          >
+            <VRHeadsetIcon size={18} />
+            Макет района · VR
+          </button>
+        </div>
         <span>
-          <VRHeadsetIcon size={17} />
-          {panoramaUrl
-            ? `Панорама 360° · ${selected?.name}`
-            : "Виртуальный каталог"}
+          {places.length} пространства · туры 360°: {tours}
         </span>
-        <p>
-          {panoramaUrl
-            ? "Осмотрись вокруг: перетаскивай фото мышью или пальцем. Можно использовать стрелки на клавиатуре."
-            : "Выбирай пространство. В «Неве» уже можно осмотреть интерьер на панораме 360°."}
-        </p>
       </div>
       <div
-        className="vr-scene"
-        ref={host}
-        aria-label={
-          panoramaUrl
-            ? `Панорама 360°: ${selected?.name}`
-            : "Интерактивный трёхмерный каталог"
-        }
-        data-panorama-state={panoramaUrl ? panoramaState : undefined}
-      />
-      {panoramaUrl && panoramaState === "loading" && !error && (
-        <p role="status">Загружаем панораму…</p>
-      )}
-      {panoramaUrl && (
-        <button
-          className="icon-button panorama-back"
-          onClick={() => setViewingPanorama(false)}
-        >
-          <ArrowLeft size={18} /> К каталогу пространств
-        </button>
-      )}
-      {error && (
-        <p className="vr-status" role="status">
-          {error}
-        </p>
-      )}
-      <p className="vr-status">{xrStatus}</p>
-      {!panoramaUrl && (
-        <div className="vr-pagination">
-          <button
-            className="icon-button"
-            onClick={() =>
-              setPage((value) => (value - 1 + pageCount) % pageCount)
-            }
-            aria-label="Предыдущие места в VR"
+        className={`explore-layout ${tourId ? "is-tour" : ""} ${mode === "vr" ? "is-vr" : ""}`}
+      >
+        <div className="explore-stage">
+          <div
+            className="explore-map"
+            hidden={Boolean(tourId) || mode === "vr"}
+            aria-label="Карта каталога пространств"
           >
-            <ArrowLeft size={18} />
-          </button>
-          <span>
-            {page + 1} / {pageCount}
-          </span>
-          <button
-            className="icon-button"
-            onClick={() => setPage((value) => (value + 1) % pageCount)}
-            aria-label="Следующие места в VR"
+            <MapView
+              places={visible}
+              selected={selected?.id ?? null}
+              onSelect={select}
+              theme={theme}
+            />
+            {!selected && (
+              <div className="explore-map-hint">
+                Выбери клуб на карте или в списке
+              </div>
+            )}
+          </div>
+          <Suspense
+            fallback={<div className="vr-loading">Открываем пространство…</div>}
           >
-            <ArrowRight size={18} />
-          </button>
+            {mode === "map" && activeTour?.tour && (
+              <PanoramaTour
+                key={activeTour.id}
+                place={activeTour}
+                onCatalogue={returnToMap}
+              />
+            )}
+            {mode === "vr" && firstTour && (
+              <PanoramaTour
+                place={firstTour}
+                districtPlaces={places}
+                selectedPlaceId={selected?.id}
+                requestTour={vrTourRequest}
+                onSelectPlace={select}
+                onCatalogue={returnToMap}
+              />
+            )}
+          </Suspense>
         </div>
-      )}
-      {selected && (
-        <div className="vr-selected">
-          <strong>{selected.name}</strong>
-          <span>
-            <MapPin size={14} />
-            {selected.address}
-          </span>
-          <p>
-            {selected.activities.length
-              ? selected.activities.slice(0, 5).join(" · ")
-              : "Направления уточняются"}
-          </p>
-        </div>
-      )}
-      {!panoramaUrl && (
-        <div
-          className="vr-accessible-list"
-          aria-label="Места в виртуальном каталоге"
-        >
-          {places.slice(page * 6, page * 6 + 6).map((place) => (
-            <button
-              key={place.id}
-              onClick={() => {
-                setViewingPanorama(true);
-                onSelect(place.id);
-              }}
+        <aside className="explore-sidebar" aria-label="Выбор пространства">
+          {selected && (
+            <section
+              className="explore-selected"
+              aria-label={`Выбрано: ${selected.name}`}
             >
-              {place.name}
-              <ArrowRight size={14} />
+              <div className="explore-selection-heading">
+                <span>{selected.kind}</span>
+                {selected.tour && (
+                  <span className="explore-tour-badge">Есть тур 360°</span>
+                )}
+              </div>
+              <h3>{selected.name}</h3>
+              <p>
+                <MapPin size={14} />
+                {selected.address}
+              </p>
+              <p className="explore-activities">
+                {selected.activities.slice(0, 3).join(" · ")}
+              </p>
+              {selected.tour ? (
+                <button
+                  className="explore-enter"
+                  onClick={() => {
+                    if (mode === "vr")
+                      setVrTourRequest({ id: selected.id, token: Date.now() });
+                    else setTourId(selected.id);
+                  }}
+                >
+                  Заглянуть внутрь <ArrowUpRight size={17} />
+                </button>
+              ) : (
+                <p className="explore-no-tour">
+                  Съёмка интерьера пока не добавлена
+                </p>
+              )}
+              <a
+                href={vkLinkFor(selected).url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Группа клуба ВКонтакте <ArrowUpRight size={13} />
+              </a>
+            </section>
+          )}
+          <div className="explore-search">
+            <label>
+              <Search size={16} />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Название или адрес"
+                aria-label="Найти пространство в каталоге"
+              />
+            </label>
+            <button
+              aria-pressed={onlyTours}
+              onClick={() => setOnlyTours((value) => !value)}
+            >
+              Только с туром 360°
             </button>
-          ))}
-        </div>
-      )}
+            <span>
+              Пространства <strong>{visible.length}</strong>
+            </span>
+          </div>
+          <div
+            className="explore-place-list"
+            aria-label="Все пространства района"
+          >
+            {visible.map((place, index) => (
+              <button
+                key={place.id}
+                className={selected?.id === place.id ? "is-selected" : ""}
+                aria-pressed={selected?.id === place.id}
+                aria-label={`Выбрать клуб: ${place.name}`}
+                onClick={() => choose(place.id)}
+              >
+                <span className="explore-place-number">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span>
+                  <strong>{place.name}</strong>
+                  <small>{place.address}</small>
+                </span>
+                {place.tour && <span className="explore-tour-badge">360°</span>}
+              </button>
+            ))}
+            {!visible.length && (
+              <p className="explore-empty">
+                Ничего не найдено. Попробуй другое название или адрес.
+              </p>
+            )}
+          </div>
+          {tourId && (
+            <button className="explore-map-return" onClick={returnToMap}>
+              <ArrowLeft size={16} />
+              Вернуться на карту
+            </button>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }

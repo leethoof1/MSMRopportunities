@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { VRButton } from "three/addons/webxr/VRButton.js";
-import { ArrowLeft, ArrowUp, RotateCcw } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowUp,
+  RotateCcw,
+  Maximize,
+  Minimize,
+} from "lucide-react";
 import type { Place, TourScene } from "./data";
+import { createDistrictModel } from "./districtModel";
 
 // UV coordinates refer directly to the original equirectangular photograph.
 function direction(u: number, v: number) {
@@ -15,9 +22,56 @@ function direction(u: number, v: number) {
   );
 }
 
-type Props = { place: Place; onCatalogue: () => void };
-export default function PanoramaTour({ place, onCatalogue }: Props) {
-  const scenes = place.tour!;
+type Props = {
+  place: Place;
+  onCatalogue: () => void;
+  districtPlaces?: Place[];
+  onSelectPlace?: (id: string) => void;
+  selectedPlaceId?: string;
+  requestTour?: { id: string; token: number };
+};
+export default function PanoramaTour({
+  place,
+  onCatalogue,
+  districtPlaces,
+  onSelectPlace,
+  selectedPlaceId,
+  requestTour,
+}: Props) {
+  const initialPlace = useRef(place).current;
+  const [tourPlace, setTourPlace] = useState(initialPlace);
+  const scenes = tourPlace.tour!;
+  const [mapMode, setMapMode] = useState(Boolean(districtPlaces));
+  const [districtSelected, setDistrictSelected] = useState<Place>();
+  const pickPlace = useRef<(id: string) => void>(() => {});
+  const startPlace = useRef<(place: Place) => void>(() => {});
+  const goToMap = useRef<() => void>(() => {});
+  const onSelectRef = useRef(onSelectPlace);
+  onSelectRef.current = onSelectPlace;
+  const tourContainer = useRef<HTMLDivElement>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    const changed = () =>
+      setFullscreen(document.fullscreenElement === tourContainer.current);
+    document.addEventListener("fullscreenchange", changed);
+    return () => document.removeEventListener("fullscreenchange", changed);
+  }, []);
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await tourContainer.current?.requestFullscreen();
+    } catch {
+      setError("Полноэкранный режим недоступен в этом браузере.");
+    }
+  }
+  function catalogue() {
+    if (districtPlaces && !mapMode) {
+      goToMap.current();
+      return;
+    }
+    if (document.fullscreenElement) void document.exitFullscreen();
+    onCatalogue();
+  }
   const host = useRef<HTMLDivElement>(null);
   const hotspot = useRef<HTMLButtonElement>(null);
   const navigate = useRef<(id: string) => void>(() => {});
@@ -96,7 +150,52 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
     arrow.visible = false;
     world.add(arrow);
     const raycaster = new THREE.Raycaster();
-    let active: TourScene = scenes[0];
+    raycaster.camera = camera;
+    let activePlace = initialPlace;
+    let active: TourScene = initialPlace.tour![0];
+    let showingMap = Boolean(districtPlaces);
+    world.add(new THREE.HemisphereLight(0xf1e8ff, 0x45314f, 3));
+    const model = districtPlaces
+      ? createDistrictModel(
+          districtPlaces,
+          (next) => {
+            setDistrictSelected(next);
+            onSelectRef.current?.(next.id);
+          },
+          (next) => {
+            startPlace.current(next);
+          },
+        )
+      : undefined;
+    if (model) world.add(model.group);
+    // This return control lives in the XR scene, so a headset can leave a tour.
+    const returnCanvas = document.createElement("canvas");
+    returnCanvas.width = 1024;
+    returnCanvas.height = 192;
+    const returnContext = returnCanvas.getContext("2d")!;
+    returnContext.fillStyle = "#783aca";
+    returnContext.beginPath();
+    returnContext.roundRect(0, 0, 1024, 192, 35);
+    returnContext.fill();
+    returnContext.fillStyle = "white";
+    returnContext.font = "bold 62px sans-serif";
+    returnContext.textAlign = "center";
+    returnContext.fillText("← К карте клубов", 512, 117);
+    const returnTexture = new THREE.CanvasTexture(returnCanvas);
+    returnTexture.colorSpace = THREE.SRGBColorSpace;
+    const returnButton = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.4, 0.265),
+      new THREE.MeshBasicMaterial({
+        map: returnTexture,
+        depthTest: false,
+        side: THREE.DoubleSide,
+      }),
+    );
+    returnButton.renderOrder = 1000;
+    returnButton.visible = false;
+    world.add(returnButton);
+    returnButton.userData.activate = () => goToMap.current();
+    const viewQuaternion = new THREE.Quaternion();
     let ready = false,
       disposed = false,
       requestId = 0;
@@ -107,6 +206,18 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
     const cameraPosition = new THREE.Vector3();
     const loader = new THREE.TextureLoader();
     function orient() {
+      camera.fov = showingMap ? 55 : 70;
+      camera.updateProjectionMatrix();
+      if (showingMap) {
+        camera.position.set(
+          0,
+          renderer.xr.isPresenting ? 1.6 : 3.4,
+          renderer.xr.isPresenting ? 0 : 1.2,
+        );
+        camera.lookAt(0, 0.65, -2.8);
+        return;
+      }
+      camera.position.set(0, 1.6, 0);
       const facing = direction(active.initialU, 0.5);
       camera.rotation.set(-0.04, Math.atan2(-facing.x, -facing.z), 0, "YXZ");
     }
@@ -150,6 +261,7 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
       return !use8K && scene.imageMobile ? scene.imageMobile : scene.image;
     }
     function prefetchNeighbours(scene: TourScene, full: boolean) {
+      const scenePool = activePlace.tour!;
       const network = (
         navigator as Navigator & {
           connection?: { saveData?: boolean; effectiveType?: string };
@@ -165,7 +277,7 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
           prefetchTimers.delete(timer);
           if (disposed) return;
           for (const link of scene.links) {
-            const neighbour = scenes.find((item) => item.id === link.target);
+            const neighbour = scenePool.find((item) => item.id === link.target);
             if (!neighbour) continue;
             const url = full ? fullImage(neighbour) : neighbour.preview;
             if (url) void download(url).catch(() => {});
@@ -176,11 +288,14 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
       prefetchTimers.add(timer);
     }
     function load(id: string) {
-      const candidate = scenes.find((scene) => scene.id === id);
+      const candidate = activePlace.tour!.find((scene) => scene.id === id);
       if (!candidate) return;
       const destination: TourScene = candidate;
       const request = ++requestId;
       active = destination;
+      showingMap = false;
+      setMapMode(false);
+      if (model) model.group.visible = false;
       ready = false;
       sphere.visible = false;
       setSceneId(id);
@@ -249,6 +364,63 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
     }
     navigate.current = load;
     resetView.current = orient;
+    startPlace.current = (next) => {
+      if (!next.tour) return;
+      activePlace = next;
+      setTourPlace(next);
+      setDistrictSelected(next);
+      onSelectRef.current?.(next.id);
+      load(next.tour[0].id);
+    };
+    pickPlace.current = (id) => {
+      const next = districtPlaces?.find((item) => item.id === id);
+      if (next) {
+        model?.select(id);
+        setDistrictSelected(next);
+      }
+    };
+    goToMap.current = () => {
+      ++requestId;
+      showingMap = true;
+      setMapMode(true);
+      setStatus("ready");
+      setError("");
+      ready = false;
+      sphere.visible = false;
+      arrow.visible = false;
+      returnButton.visible = false;
+      if (model) model.group.visible = true;
+      if (hotspot.current) hotspot.current.style.visibility = "hidden";
+      orient();
+    };
+    function activateRay() {
+      const candidates = showingMap
+        ? (model?.targets ?? []).filter(
+            (object) => object.visible && object.parent?.visible !== false,
+          )
+        : [arrow, ...(model ? [returnButton] : [])].filter(
+            (object) => object.visible,
+          );
+      const hit = raycaster.intersectObjects(candidates, false)[0];
+      if (!hit) return;
+      if (showingMap || hit.object === returnButton)
+        hit.object.userData.activate?.();
+      else if (ready) load(active.links[0].target);
+    }
+    let hoveredId = "";
+    function hoverRay() {
+      if (!showingMap || !model) return;
+      const hit = raycaster.intersectObjects(
+        model.targets.filter((object) => object.visible),
+        false,
+      )[0];
+      const id = hit?.object.userData.placeId;
+      if (id && id !== hoveredId) {
+        hoveredId = id;
+        model.select(id);
+      }
+    }
+    const controllers: THREE.Group[] = [];
     let dragging = false,
       moved = false,
       previousX = 0,
@@ -264,7 +436,21 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
       canvas.focus({ preventScroll: true });
     }
     function move(event: PointerEvent) {
-      if (!dragging || renderer.xr.isPresenting) return;
+      if (renderer.xr.isPresenting) return;
+      if (!dragging) {
+        if (showingMap) {
+          const rect = canvas.getBoundingClientRect();
+          raycaster.setFromCamera(
+            new THREE.Vector2(
+              ((event.clientX - rect.left) / rect.width) * 2 - 1,
+              (-(event.clientY - rect.top) / rect.height) * 2 + 1,
+            ),
+            camera,
+          );
+          hoverRay();
+        }
+        return;
+      }
       if (Math.hypot(event.clientX - startX, event.clientY - startY) > 4)
         moved = true;
       if (moved) {
@@ -278,8 +464,18 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
       previousX = event.clientX;
       previousY = event.clientY;
     }
-    function up() {
+    function up(event: PointerEvent) {
       dragging = false;
+      if (!showingMap || moved || renderer.xr.isPresenting) return;
+      const rect = canvas.getBoundingClientRect();
+      raycaster.setFromCamera(
+        new THREE.Vector2(
+          ((event.clientX - rect.left) / rect.width) * 2 - 1,
+          (-(event.clientY - rect.top) / rect.height) * 2 + 1,
+        ),
+        camera,
+      );
+      activateRay();
     }
     function key(event: KeyboardEvent) {
       if (
@@ -301,6 +497,7 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
     canvas.addEventListener("keydown", key);
     for (let index = 0; index < 2; index++) {
       const controller = renderer.xr.getController(index);
+      controllers.push(controller);
       const line = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints([
           new THREE.Vector3(),
@@ -310,22 +507,28 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
       );
       controller.add(line);
       controller.addEventListener("select", () => {
-        if (!ready) return;
+        if (!showingMap && !ready) return;
         const rotation = new THREE.Matrix4().extractRotation(
           controller.matrixWorld,
         );
         raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
         raycaster.ray.direction.set(0, 0, -1).applyMatrix4(rotation);
-        if (raycaster.intersectObject(arrow).length)
-          load(active.links[0].target);
+        activateRay();
       });
       world.add(controller);
     }
     function enterVR() {
-      load(active.id);
+      if (showingMap) orient();
+      else load(active.id);
     }
     renderer.xr.addEventListener("sessionstart", enterVR);
+    const endVR = () => orient();
+    renderer.xr.addEventListener("sessionend", endVR);
     let vrButton: HTMLElement | null = null;
+    if (!navigator.xr && districtPlaces)
+      setXrStatus(
+        "Макет доступен на экране. Для VR открой сайт в браузере совместимых очков.",
+      );
     if (navigator.xr && window.isSecureContext) {
       navigator.xr
         .isSessionSupported("immersive-vr")
@@ -334,10 +537,16 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
           if (supported) {
             vrButton = VRButton.createButton(renderer);
             element.appendChild(vrButton);
+            vrButton.classList.add("tour-vr-button");
             setXrStatus("В VR выбирай стрелки лучом контроллера.");
-          }
+          } else if (districtPlaces)
+            setXrStatus(
+              "Макет доступен на экране. VR можно включить в совместимых очках.",
+            );
         })
-        .catch(() => {});
+        .catch(() =>
+          setXrStatus("Не удалось проверить VR. Просмотр на экране доступен."),
+        );
     }
     function resize() {
       const width = element.clientWidth,
@@ -350,7 +559,30 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
     observer.observe(element);
     resize();
     renderer.setAnimationLoop(() => {
-      arrow.visible = ready && renderer.xr.isPresenting;
+      for (const controller of controllers) {
+        controller.visible = renderer.xr.isPresenting;
+        if (showingMap && renderer.xr.isPresenting) {
+          const rotation = new THREE.Matrix4().extractRotation(
+            controller.matrixWorld,
+          );
+          raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+          raycaster.ray.direction.set(0, 0, -1).applyMatrix4(rotation);
+          hoverRay();
+        }
+      }
+      arrow.visible = ready && !showingMap && renderer.xr.isPresenting;
+      returnButton.visible =
+        Boolean(model) && !showingMap && renderer.xr.isPresenting;
+      if (returnButton.visible) {
+        const view = renderer.xr.getCamera();
+        view.getWorldQuaternion(viewQuaternion);
+        view.getWorldPosition(cameraPosition);
+        returnButton.position
+          .set(0, -0.85, -2)
+          .applyQuaternion(viewQuaternion)
+          .add(cameraPosition);
+        returnButton.quaternion.copy(viewQuaternion);
+      }
       renderer.render(world, camera);
       const button = hotspot.current;
       if (!button) return;
@@ -361,6 +593,7 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
       projected.copy(anchor).project(camera);
       const visible =
         ready &&
+        !showingMap &&
         !renderer.xr.isPresenting &&
         inFront &&
         Math.abs(projected.x) < 0.93 &&
@@ -369,17 +602,22 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
       button.style.left = `${(projected.x + 1) * 50}%`;
       button.style.top = `${(1 - projected.y) * 50}%`;
     });
-    load(scenes[0].id);
+    if (model) goToMap.current();
+    else load(initialPlace.tour![0].id);
     return () => {
       disposed = true;
       ++requestId;
       ready = false;
       navigate.current = () => {};
+      startPlace.current = () => {};
+      pickPlace.current = () => {};
+      goToMap.current = () => {};
       resetView.current = () => {};
       abort.abort();
       for (const timer of prefetchTimers) window.clearTimeout(timer);
       downloads.clear();
       renderer.xr.removeEventListener("sessionstart", enterVR);
+      renderer.xr.removeEventListener("sessionend", endVR);
       observer.disconnect();
       renderer.setAnimationLoop(null);
       const session = renderer.xr.getSession();
@@ -389,6 +627,10 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
       canvas.removeEventListener("pointerup", up);
       canvas.removeEventListener("pointercancel", up);
       canvas.removeEventListener("keydown", key);
+      if (model) {
+        world.remove(model.group);
+        model.dispose();
+      }
       world.traverse((object) => {
         if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
           object.geometry.dispose();
@@ -399,40 +641,62 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
         }
       });
       loadedTexture?.dispose();
+      returnTexture.dispose();
       arrowTexture.dispose();
       arrowMaterial.dispose();
       renderer.dispose();
       canvas.remove();
       vrButton?.remove();
     };
-  }, [scenes]);
+  }, [initialPlace, districtPlaces]);
+  useEffect(() => {
+    if (selectedPlaceId) pickPlace.current(selectedPlaceId);
+  }, [selectedPlaceId]);
+  useEffect(() => {
+    const next = districtPlaces?.find((item) => item.id === requestTour?.id);
+    if (next) startPlace.current(next);
+  }, [requestTour, districtPlaces]);
 
   return (
-    <div className="vr-content panorama-tour">
+    <div
+      ref={tourContainer}
+      className={`vr-content panorama-tour ${mapMode ? "district-view" : ""}`}
+    >
       <div className="vr-intro">
-        <span>Прогулка по клубу «{place.name}»</span>
+        <span>
+          {mapMode
+            ? "Макет Московского района"
+            : `Прогулка по клубу «${tourPlace.name}»`}
+        </span>
         <p>
-          Осмотрись мышью или пальцем. Нажми на стрелку у двери, чтобы перейти в
-          другое помещение.
+          {mapMode
+            ? "Выбирай метки мышью или лучом VR-контроллера. У клубов с панорамами есть отметка 360°."
+            : "Осмотрись мышью или пальцем. Нажми на стрелку у двери, чтобы перейти в другое помещение."}
         </p>
       </div>
-      <div className="tour-scene-heading">
-        <strong>{current.name}</strong>
-        <span>
-          {scenes.findIndex((scene) => scene.id === sceneId) + 1} /{" "}
-          {scenes.length}
-        </span>
-      </div>
+      {!mapMode && (
+        <div className="tour-scene-heading">
+          <strong>{current.name}</strong>
+          <span>
+            {scenes.findIndex((scene) => scene.id === sceneId) + 1} /{" "}
+            {scenes.length}
+          </span>
+        </div>
+      )}
       <div
         className="vr-scene"
         ref={host}
-        aria-label={`Панорама 360°: ${place.name}`}
+        aria-label={
+          mapMode ? "Макет района для VR" : `Панорама 360°: ${tourPlace.name}`
+        }
+        data-district-pins={districtPlaces?.length}
         data-panorama-state={status}
-        data-tour-scene={sceneId}
+        data-tour-scene={mapMode ? "district" : sceneId}
         data-panorama-detail={detail}
         aria-busy={status === "loading"}
       >
         <button
+          hidden={mapMode}
           ref={hotspot}
           className="tour-hotspot"
           style={{ visibility: "hidden" }}
@@ -445,17 +709,51 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
           </span>
           <span className="tour-hotspot-label">{current.links[0].label}</span>
         </button>
-        {status === "loading" && (
+        {!mapMode && status === "loading" && (
           <div className="tour-loading" role="status">
             Загружаем панораму…
           </div>
         )}
       </div>
-      <p className="tour-detail-status" role="status">
-        {status === "ready" && detail === "preview" && !error
-          ? "Повышаем чёткость… Можно осматриваться и переходить дальше."
-          : "\u00a0"}
-      </p>
+      {!mapMode && (
+        <p className="tour-detail-status" role="status">
+          {status === "ready" && detail === "preview" && !error
+            ? "Повышаем чёткость… Можно осматриваться и переходить дальше."
+            : "\u00a0"}
+        </p>
+      )}
+      {mapMode && (
+        <div className="district-summary">
+          {districtSelected ? (
+            <>
+              <strong>{districtSelected.name}</strong>
+              <span>{districtSelected.address}</span>
+              {districtSelected.tour ? (
+                <button
+                  className="explore-enter"
+                  onClick={() => startPlace.current(districtSelected)}
+                >
+                  Заглянуть внутрь в VR <ArrowUp size={16} />
+                </button>
+              ) : (
+                <span>Съёмка интерьера пока не добавлена</span>
+              )}
+            </>
+          ) : (
+            <span>
+              {districtPlaces?.length} пространства на одной карте. Нажми на
+              метку, чтобы выбрать клуб.
+            </span>
+          )}
+          <a
+            href="https://www.openstreetmap.org/copyright"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Карта © OpenStreetMap contributors
+          </a>
+        </div>
+      )}
       {error && (
         <div role="status" className="tour-error">
           <p>{error}</p>
@@ -464,25 +762,32 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
           </button>
         </div>
       )}
-      <nav className="tour-room-nav" aria-label="Помещения клуба">
-        {scenes.map((scene) => (
-          <button
-            key={scene.id}
-            aria-current={scene.id === sceneId ? "step" : undefined}
-            onClick={() => navigate.current(scene.id)}
-            disabled={scene.id === sceneId && status !== "error"}
-          >
-            {scene.name}
-          </button>
-        ))}
-      </nav>
+      {!mapMode && (
+        <nav className="tour-room-nav" aria-label="Помещения клуба">
+          {scenes.map((scene) => (
+            <button
+              key={scene.id}
+              aria-current={scene.id === sceneId ? "step" : undefined}
+              onClick={() => navigate.current(scene.id)}
+              disabled={scene.id === sceneId && status !== "error"}
+            >
+              {scene.name}
+            </button>
+          ))}
+        </nav>
+      )}
       <div className="tour-tools">
         <button onClick={() => resetView.current()}>
           <RotateCcw size={15} />
           Исходный ракурс
         </button>
-        <button onClick={onCatalogue}>
-          <ArrowLeft size={15} />К каталогу пространств
+        <button onClick={toggleFullscreen} aria-pressed={fullscreen}>
+          {fullscreen ? <Minimize size={15} /> : <Maximize size={15} />}{" "}
+          {fullscreen ? "Свернуть" : "На весь экран"}
+        </button>
+        <button onClick={catalogue}>
+          <ArrowLeft size={15} />
+          {mapMode ? "Открыть обычную карту" : "Выбрать другой клуб"}
         </button>
       </div>
       {xrStatus && <p className="vr-status">{xrStatus}</p>}
