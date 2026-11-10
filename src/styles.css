@@ -2453,3 +2453,108 @@ h1 > span:first-of-type {
     height: 25px;
   }
 }
+
+.tour-scene-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--purple);
+  margin: 0 0 12px;
+}
+.tour-scene-heading > span {
+  color: #8c8199;
+  font-size: 12px;
+}
+.tour-hotspot {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 7px;
+  background: transparent;
+  padding: 8px;
+  max-width: 190px;
+  color: #fff;
+  touch-action: manipulation;
+}
+.tour-hotspot-arrow {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #fff;
+  color: #783aca;
+  box-shadow: 0 2px 16px #0006;
+  border: 2px solid #e9dff8;
+  transition: transform 0.15s;
+}
+.tour-hotspot:hover .tour-hotspot-arrow,
+.tour-hotspot:focus-visible .tour-hotspot-arrow {
+  transform: scale(1.12);
+}
+.tour-hotspot-label {
+  background: #241634e6;
+  padding: 6px 10px;
+  border-radius: 7px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 2px 12px #0003;
+}
+.tour-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #161426b3;
+  color: white;
+  font-size: 14px;
+  z-index: 3;
+}
+.tour-room-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.tour-room-nav button {
+  padding: 10px 13px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--purple);
+}
+.tour-room-nav button[aria-current] {
+  background: #783aca;
+  color: white;
+  border-color: #783aca;
+  opacity: 1;
+}
+.tour-tools {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 15px;
+}
+.tour-tools button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--purple);
+  font-size: 12px;
+  padding: 7px 0;
+}
+.tour-error {
+  padding: 12px;
+  font-size: 13px;
+}
+.tour-error button {
+  color: var(--purple);
+  text-decoration: underline;
+}

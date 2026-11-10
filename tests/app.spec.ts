@@ -354,7 +354,7 @@ test("failed Neva photo can be reopened after a network error", async ({
   page,
 }) => {
   test.setTimeout(60_000);
-  await page.route("**/panoramas/neva.jpg", (route) => route.abort(), {
+  await page.route("**/panoramas/neva-corridor.jpg", (route) => route.abort(), {
     times: 1,
   });
   await page.goto("/?place=neva");
@@ -362,7 +362,7 @@ test("failed Neva photo can be reopened after a network error", async ({
   const dialog = page.getByRole("dialog");
   await expect(
     dialog.getByText(
-      "Не удалось загрузить панораму. Попробуй открыть её ещё раз.",
+      "Не удалось загрузить панораму. Проверь подключение и попробуй ещё раз.",
     ),
   ).toBeVisible();
   await expect(dialog.getByText("Загружаем панораму…")).toHaveCount(0);
@@ -371,4 +371,56 @@ test("failed Neva photo can be reopened after a network error", async ({
   await expect(
     dialog.getByLabel("Панорама 360°: Нева", { exact: true }),
   ).toHaveAttribute("data-panorama-state", "ready");
+});
+
+test("Neva tour starts at the entrance and doorway arrows work both ways", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/?place=neva");
+  const card = page.getByRole("region", { name: "Карточка: Нева" });
+  // The tour is immediately after VK, above the address and activity list.
+  await expect(card.locator(".club-vk-link + .tour-preview")).toBeVisible();
+  await card.getByRole("button", { name: "Смотреть 360°" }).click();
+  const dialog = page.getByRole("dialog");
+  const scene = dialog.locator(".vr-scene");
+  await expect(scene).toHaveAttribute("data-tour-scene", "entrance");
+  await expect(scene).toHaveAttribute("data-panorama-state", "ready", {
+    timeout: 20000,
+  });
+  const forward = dialog.getByRole("button", {
+    name: "В пространство возможностей",
+    exact: true,
+  });
+  await expect(forward).toBeVisible();
+  if (test.info().project.name === "mobile") await forward.tap();
+  else await forward.click();
+  await expect(scene).toHaveAttribute("data-tour-scene", "room");
+  await expect(scene).toHaveAttribute("data-panorama-state", "ready", {
+    timeout: 20000,
+  });
+  // The return arrow sits on the exit door behind the viewer, so turn around.
+  const canvas = scene.locator("canvas");
+  await canvas.focus();
+  for (let i = 0; i < 26; i++) await page.keyboard.press("ArrowLeft");
+  const back = dialog.getByRole("button", {
+    name: "Обратно в коридор",
+    exact: true,
+  });
+  await expect(back).toBeVisible();
+  if (test.info().project.name === "mobile") await back.tap();
+  else await back.click();
+  await expect(scene).toHaveAttribute("data-tour-scene", "entrance");
+  await expect(scene).toHaveAttribute("data-panorama-state", "ready", {
+    timeout: 20000,
+  });
+  await expect(forward).toBeVisible();
+  const corridor = await page.request.get("/panoramas/neva-corridor.jpg");
+  const room = await page.request.get("/panoramas/neva-room.jpg");
+  // Check that the originals, rather than chat thumbnails, are actually served.
+  expect((await corridor.body()).length).toBeGreaterThan(5_000_000);
+  expect((await room.body()).length).toBeGreaterThan(8_000_000);
+  expect(errors).toEqual([]);
 });

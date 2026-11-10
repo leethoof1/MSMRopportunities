@@ -4,6 +4,13 @@ import { clubUpdates } from "./clubUpdates.ts";
 export { normalize } from "./activitySearch.ts";
 
 export type Category = "creative" | "sport" | "music" | "growth" | "community";
+export type TourScene = {
+  id: string;
+  name: string;
+  image: string;
+  initialU: number;
+  links: { target: string; label: string; u: number; v: number }[];
+};
 export type Place = {
   id: string;
   name: string;
@@ -20,6 +27,7 @@ export type Place = {
   phone?: string;
   fromMap?: boolean;
   panorama?: string;
+  tour?: TourScene[];
   vkUrl?: string;
   vkGroupName?: string;
   aliases?: string[];
@@ -494,7 +502,39 @@ export const places: Place[] = [
       "Разговорный английский",
     ],
     "music",
-    { panorama: `${import.meta.env?.BASE_URL ?? "/"}panoramas/neva.jpg` },
+    {
+      panorama: `${import.meta.env?.BASE_URL ?? "/"}panoramas/neva-corridor.jpg`,
+      tour: [
+        {
+          id: "entrance",
+          name: "Вход · коридор",
+          image: `${import.meta.env?.BASE_URL ?? "/"}panoramas/neva-corridor.jpg`,
+          initialU: 0.407,
+          links: [
+            {
+              target: "room",
+              label: "В пространство возможностей",
+              u: 0.407,
+              v: 0.56,
+            },
+          ],
+        },
+        {
+          id: "room",
+          name: "Пространство возможностей",
+          image: `${import.meta.env?.BASE_URL ?? "/"}panoramas/neva-room.jpg`,
+          initialU: 0.37,
+          links: [
+            {
+              target: "entrance",
+              label: "Обратно в коридор",
+              u: 0.869,
+              v: 0.55,
+            },
+          ],
+        },
+      ],
+    },
   ),
   club(
     "oktyabr",

@@ -763,6 +763,23 @@ function PlaceDetail({
           </span>
           <ExternalLink size={16} />
         </a>
+        <div className="tour-preview">
+          <div>
+            <VRHeadsetIcon size={23} />
+            <span>
+              <strong>Загляни внутрь</strong>
+              <small>
+                {place.panorama
+                  ? "Прогуляйся по клубу: вход и пространство возможностей"
+                  : "Панорамы 360° появятся после съёмки"}
+              </small>
+            </span>
+          </div>
+          <button onClick={onVR}>
+            {place.panorama ? "Смотреть 360°" : "VR-каталог"}{" "}
+            <ArrowUpRight size={16} />
+          </button>
+        </div>
         <div className="detail-facts">
           <p>
             <MapPin size={17} />
@@ -824,23 +841,6 @@ function PlaceDetail({
             </ul>
           </section>
         )}
-        <div className="tour-preview">
-          <div>
-            <VRHeadsetIcon size={23} />
-            <span>
-              <strong>Загляни внутрь</strong>
-              <small>
-                {place.panorama
-                  ? "Осмотрись на панораме клуба 360°"
-                  : "Панорамы 360° появятся после съёмки"}
-              </small>
-            </span>
-          </div>
-          <button onClick={onVR}>
-            {place.panorama ? "Смотреть 360°" : "VR-каталог"}{" "}
-            <ArrowUpRight size={16} />
-          </button>
-        </div>
       </div>
       <div className="detail-actions">
         <a href={routeUrl(place)} target="_blank" rel="noreferrer">

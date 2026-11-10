@@ -4,6 +4,7 @@ import { VRButton } from "three/addons/webxr/VRButton.js";
 import { ArrowLeft, ArrowRight, MapPin } from "lucide-react";
 import type { Place } from "./data";
 import VRHeadsetIcon from "./VRHeadsetIcon";
+import PanoramaTour from "./PanoramaTour";
 
 type Props = {
   places: Place[];
@@ -12,6 +13,28 @@ type Props = {
 };
 
 export default function VRExperience({ places, selected, onSelect }: Props) {
+  const [catalogue, setCatalogue] = useState(false);
+  if (selected?.tour && !catalogue)
+    return (
+      <PanoramaTour
+        key={selected.id}
+        place={selected}
+        onCatalogue={() => setCatalogue(true)}
+      />
+    );
+  return (
+    <CatalogueExperience
+      places={places}
+      selected={selected?.tour ? undefined : selected}
+      onSelect={(id) => {
+        setCatalogue(false);
+        onSelect(id);
+      }}
+    />
+  );
+}
+
+function CatalogueExperience({ places, selected, onSelect }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const selectRef = useRef(onSelect);
   selectRef.current = onSelect;
