@@ -18,6 +18,9 @@ export default function VRExperience({ places, selected, onSelect }: Props) {
   const [page, setPage] = useState(0);
   const [error, setError] = useState("");
   const [xrStatus, setXrStatus] = useState("Проверяем поддержку VR…");
+  const [viewingPanorama, setViewingPanorama] = useState(true);
+  const [panoramaState, setPanoramaState] = useState("loading");
+  const panoramaUrl = viewingPanorama ? selected?.panorama : undefined;
   const pageCount = Math.ceil(places.length / 6);
 
   useEffect(() => {
@@ -32,9 +35,15 @@ export default function VRExperience({ places, selected, onSelect }: Props) {
       return;
     }
     setError("");
+    setPanoramaState("loading");
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.xr.enabled = true;
     element.appendChild(renderer.domElement);
+    renderer.domElement.tabIndex = 0;
+    renderer.domElement.setAttribute(
+      "aria-label",
+      "Обзор: перетаскивай изображение или используй стрелки",
+    );
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#161426");
     scene.fog = new THREE.Fog("#161426", 6, 24);
@@ -201,6 +210,7 @@ export default function VRExperience({ places, selected, onSelect }: Props) {
           (item) => item.id === target.userData.placeId,
         );
         if (place) {
+          setViewingPanorama(true);
           selectRef.current(place.id);
           info(place);
         }
@@ -237,6 +247,19 @@ export default function VRExperience({ places, selected, onSelect }: Props) {
     function onCancel() {
       dragging = false;
     }
+    function onKeyDown(event: KeyboardEvent) {
+      if (renderer.xr.isPresenting) return;
+      if (
+        !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)
+      )
+        return;
+      event.preventDefault();
+      if (event.key === "ArrowLeft") camera.rotation.y += 0.12;
+      if (event.key === "ArrowRight") camera.rotation.y -= 0.12;
+      if (event.key === "ArrowUp") camera.rotation.x += 0.12;
+      if (event.key === "ArrowDown") camera.rotation.x -= 0.12;
+      camera.rotation.x = THREE.MathUtils.clamp(camera.rotation.x, -1.15, 1.15);
+    }
     function onClick(event: PointerEvent) {
       dragging = false;
       if (renderer.xr.isPresenting || moved) return;
@@ -254,6 +277,7 @@ export default function VRExperience({ places, selected, onSelect }: Props) {
     renderer.domElement.addEventListener("pointermove", onMove);
     renderer.domElement.addEventListener("pointercancel", onCancel);
     renderer.domElement.addEventListener("pointerup", onClick);
+    renderer.domElement.addEventListener("keydown", onKeyDown);
     for (let i = 0; i < 2; i++) {
       const controller = renderer.xr.getController(i);
       const line = new THREE.Line(
@@ -282,7 +306,7 @@ export default function VRExperience({ places, selected, onSelect }: Props) {
       setXrStatus("Для VR-очков открой сайт по HTTPS.");
     else if (!navigator.xr)
       setXrStatus(
-        "VR-очки не обнаружены. Карточки можно нажимать мышью или касанием.",
+        "Просмотр доступен мышью или касанием. Для VR используй совместимые очки.",
       );
     else
       navigator.xr
@@ -318,10 +342,9 @@ export default function VRExperience({ places, selected, onSelect }: Props) {
     resize();
     renderer.setAnimationLoop(() => renderer.render(scene, camera));
 
-    // Future same-origin equirectangular photos are rendered inside an immersive sphere.
-    if (selected?.panorama) {
+    if (panoramaUrl) {
       new THREE.TextureLoader().load(
-        selected.panorama,
+        panoramaUrl,
         (panorama) => {
           if (disposed) {
             panorama.dispose();
@@ -333,23 +356,31 @@ export default function VRExperience({ places, selected, onSelect }: Props) {
             new THREE.SphereGeometry(15, 64, 40),
             new THREE.MeshBasicMaterial({
               map: panorama,
-              side: THREE.BackSide,
+              side: THREE.FrontSide,
+              fog: false,
             }),
           );
+          // Invert the sphere so the interior photo is not mirrored.
+          sphere.geometry.scale(-1, 1, 1);
           sphere.position.y = 1.6;
+          sphere.rotation.y = Math.PI;
           scene.add(sphere);
+          targets.length = 0;
           group.visible = false;
           floor.visible = false;
           grid.visible = false;
           ring.visible = false;
           infoPanel.visible = false;
+          setPanoramaState("ready");
         },
         undefined,
         () => {
-          if (!disposed)
+          if (!disposed) {
+            setPanoramaState("error");
             setError(
-              "Не удалось загрузить панораму. Проверь путь к фотографии.",
+              "Не удалось загрузить панораму. Попробуй открыть её ещё раз.",
             );
+          }
         },
       );
     }
@@ -364,6 +395,7 @@ export default function VRExperience({ places, selected, onSelect }: Props) {
       renderer.domElement.removeEventListener("pointerdown", onDown);
       renderer.domElement.removeEventListener("pointermove", onMove);
       renderer.domElement.removeEventListener("pointercancel", onCancel);
+      renderer.domElement.removeEventListener("keydown", onKeyDown);
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
           object.geometry.dispose();
@@ -380,52 +412,73 @@ export default function VRExperience({ places, selected, onSelect }: Props) {
     };
     // Selection updates the HTML summary; card clicks also update the scene without recreating the XR session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [places, page, pageCount]);
+  }, [places, page, pageCount, panoramaUrl]);
 
   return (
     <div className="vr-content">
       <div className="vr-intro">
         <span>
           <VRHeadsetIcon size={17} />
-          Виртуальный каталог
+          {panoramaUrl
+            ? `Панорама 360° · ${selected?.name}`
+            : "Виртуальный каталог"}
         </span>
         <p>
-          Реальные места — в новом формате. Панорамы интерьеров появятся после
-          съёмки 360°.
+          {panoramaUrl
+            ? "Осмотрись вокруг: перетаскивай фото мышью или пальцем. Можно использовать стрелки на клавиатуре."
+            : "Выбирай пространство. В «Неве» уже можно осмотреть интерьер на панораме 360°."}
         </p>
       </div>
       <div
         className="vr-scene"
         ref={host}
-        aria-label="Интерактивный трёхмерный каталог"
+        aria-label={
+          panoramaUrl
+            ? `Панорама 360°: ${selected?.name}`
+            : "Интерактивный трёхмерный каталог"
+        }
+        data-panorama-state={panoramaUrl ? panoramaState : undefined}
       />
+      {panoramaUrl && panoramaState === "loading" && !error && (
+        <p role="status">Загружаем панораму…</p>
+      )}
+      {panoramaUrl && (
+        <button
+          className="icon-button panorama-back"
+          onClick={() => setViewingPanorama(false)}
+        >
+          <ArrowLeft size={18} /> К каталогу пространств
+        </button>
+      )}
       {error && (
         <p className="vr-status" role="status">
           {error}
         </p>
       )}
       <p className="vr-status">{xrStatus}</p>
-      <div className="vr-pagination">
-        <button
-          className="icon-button"
-          onClick={() =>
-            setPage((value) => (value - 1 + pageCount) % pageCount)
-          }
-          aria-label="Предыдущие места в VR"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <span>
-          {page + 1} / {pageCount}
-        </span>
-        <button
-          className="icon-button"
-          onClick={() => setPage((value) => (value + 1) % pageCount)}
-          aria-label="Следующие места в VR"
-        >
-          <ArrowRight size={18} />
-        </button>
-      </div>
+      {!panoramaUrl && (
+        <div className="vr-pagination">
+          <button
+            className="icon-button"
+            onClick={() =>
+              setPage((value) => (value - 1 + pageCount) % pageCount)
+            }
+            aria-label="Предыдущие места в VR"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <span>
+            {page + 1} / {pageCount}
+          </span>
+          <button
+            className="icon-button"
+            onClick={() => setPage((value) => (value + 1) % pageCount)}
+            aria-label="Следующие места в VR"
+          >
+            <ArrowRight size={18} />
+          </button>
+        </div>
+      )}
       {selected && (
         <div className="vr-selected">
           <strong>{selected.name}</strong>
@@ -440,17 +493,25 @@ export default function VRExperience({ places, selected, onSelect }: Props) {
           </p>
         </div>
       )}
-      <div
-        className="vr-accessible-list"
-        aria-label="Места в виртуальном каталоге"
-      >
-        {places.slice(page * 6, page * 6 + 6).map((place) => (
-          <button key={place.id} onClick={() => onSelect(place.id)}>
-            {place.name}
-            <ArrowRight size={14} />
-          </button>
-        ))}
-      </div>
+      {!panoramaUrl && (
+        <div
+          className="vr-accessible-list"
+          aria-label="Места в виртуальном каталоге"
+        >
+          {places.slice(page * 6, page * 6 + 6).map((place) => (
+            <button
+              key={place.id}
+              onClick={() => {
+                setViewingPanorama(true);
+                onSelect(place.id);
+              }}
+            >
+              {place.name}
+              <ArrowRight size={14} />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

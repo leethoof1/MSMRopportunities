@@ -84,7 +84,7 @@ test("searches activities, normalizes ё and combines category filters", async (
   ).toHaveCount(0);
 });
 
-test("empty results can be reset, 360 filter does not invent tours", async ({
+test("empty results can be reset, 360 filter shows only photographed clubs", async ({
   page,
 }) => {
   await page
@@ -94,8 +94,10 @@ test("empty results can be reset, 360 filter does not invent tours", async ({
   await page.getByRole("button", { name: "Показать все пространства" }).click();
   await expect(page.getByRole("article")).toHaveCount(22);
   await page.getByRole("button", { name: "360°", exact: true }).click();
-  await expect(page.getByText("Панорамы ещё впереди")).toBeVisible();
-  await expect(page.getByRole("article")).toHaveCount(0);
+  await expect(page.getByRole("article")).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "Подробнее: Нева", exact: true }),
+  ).toBeVisible();
 });
 
 test("favorites persist across reloads and can be removed", async ({
@@ -286,4 +288,87 @@ test("captures the layout and detail at this device size", async ({
     path: `/tmp/msmr-${testInfo.project.name}-detail.png`,
     fullPage: true,
   });
+});
+
+test("Neva panorama loads, responds to dragging, and returns to the catalogue", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/?place=neva");
+  await page.getByRole("button", { name: "Смотреть 360°" }).click();
+  const dialog = page.getByRole("dialog");
+  const scene = dialog.getByLabel("Панорама 360°: Нева", { exact: true });
+  await expect(scene).toHaveAttribute("data-panorama-state", "ready");
+  const canvas = scene.locator("canvas");
+  const before = await canvas.screenshot();
+  const bounds = (await canvas.boundingBox())!;
+  const x = bounds.x + bounds.width / 2,
+    y = bounds.y + bounds.height / 2;
+  if (test.info().project.name === "mobile") {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ x, y }],
+    });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x: x + 90, y: y + 25 }],
+    });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    await cdp.detach();
+  } else {
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 90, y + 25, { steps: 6 });
+    await page.mouse.up();
+  }
+  await expect
+    .poll(async () => (await canvas.screenshot()).equals(before))
+    .toBe(false);
+  await canvas.focus();
+  const afterDrag = await canvas.screenshot();
+  await page.keyboard.press("ArrowRight");
+  await expect
+    .poll(async () => (await canvas.screenshot()).equals(afterDrag))
+    .toBe(false);
+  await expect(dialog.locator(".vr-pagination")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "К каталогу пространств" }).click();
+  await expect(dialog.locator(".vr-pagination")).toBeVisible();
+  await expect(
+    dialog.getByLabel("Интерактивный трёхмерный каталог", { exact: true }),
+  ).toBeVisible();
+  // Select Neva from the accessible catalogue and enter the panorama again.
+  await dialog.getByRole("button", { name: "Следующие места в VR" }).click();
+  await dialog.getByRole("button", { name: "Следующие места в VR" }).click();
+  await dialog.getByRole("button", { name: "Нева", exact: true }).click();
+  await expect(scene).toHaveAttribute("data-panorama-state", "ready");
+  expect(errors).toEqual([]);
+});
+
+test("failed Neva photo can be reopened after a network error", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.route("**/panoramas/neva.jpg", (route) => route.abort(), {
+    times: 1,
+  });
+  await page.goto("/?place=neva");
+  await page.getByRole("button", { name: "Смотреть 360°" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByText(
+      "Не удалось загрузить панораму. Попробуй открыть её ещё раз.",
+    ),
+  ).toBeVisible();
+  await expect(dialog.getByText("Загружаем панораму…")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Закрыть окно" }).click();
+  await page.getByRole("button", { name: "Смотреть 360°" }).click();
+  await expect(
+    dialog.getByLabel("Панорама 360°: Нева", { exact: true }),
+  ).toHaveAttribute("data-panorama-state", "ready");
 });

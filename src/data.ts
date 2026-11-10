@@ -494,6 +494,7 @@ export const places: Place[] = [
       "Разговорный английский",
     ],
     "music",
+    { panorama: `${import.meta.env?.BASE_URL ?? "/"}panoramas/neva.jpg` },
   ),
   club(
     "oktyabr",

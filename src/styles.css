@@ -1457,6 +1457,13 @@ h1 > span:first-of-type {
 .vr-scene canvas {
   display: block;
 }
+.panorama-back {
+  width: fit-content;
+  max-width: 100%;
+  gap: 8px;
+  padding: 8px 12px;
+  color: var(--purple);
+}
 .vr-loading {
   padding: 70px;
   text-align: center;
