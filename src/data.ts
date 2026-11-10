@@ -8,6 +8,8 @@ export type TourScene = {
   id: string;
   name: string;
   image: string;
+  preview?: string;
+  imageMobile?: string;
   initialU: number;
   links: { target: string; label: string; u: number; v: number }[];
 };
@@ -503,12 +505,14 @@ export const places: Place[] = [
     ],
     "music",
     {
-      panorama: `${import.meta.env?.BASE_URL ?? "/"}panoramas/neva-corridor.jpg`,
+      panorama: `${import.meta.env?.BASE_URL ?? "/"}panoramas/neva-corridor-1024.webp`,
       tour: [
         {
           id: "entrance",
           name: "Вход · коридор",
-          image: `${import.meta.env?.BASE_URL ?? "/"}panoramas/neva-corridor.jpg`,
+          image: `${import.meta.env?.BASE_URL ?? "/"}panoramas/neva-corridor-8192.webp`,
+          preview: `${import.meta.env?.BASE_URL ?? "/"}panoramas/neva-corridor-1024.webp`,
+          imageMobile: `${import.meta.env?.BASE_URL ?? "/"}panoramas/neva-corridor-4096.webp`,
           initialU: 0.407,
           links: [
             {
@@ -522,7 +526,9 @@ export const places: Place[] = [
         {
           id: "room",
           name: "Пространство возможностей",
-          image: `${import.meta.env?.BASE_URL ?? "/"}panoramas/neva-room.jpg`,
+          image: `${import.meta.env?.BASE_URL ?? "/"}panoramas/neva-room-8192.webp`,
+          preview: `${import.meta.env?.BASE_URL ?? "/"}panoramas/neva-room-1024.webp`,
+          imageMobile: `${import.meta.env?.BASE_URL ?? "/"}panoramas/neva-room-4096.webp`,
           initialU: 0.37,
           links: [
             {

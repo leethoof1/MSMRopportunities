@@ -2558,3 +2558,11 @@ h1 > span:first-of-type {
   color: var(--purple);
   text-decoration: underline;
 }
+
+.tour-detail-status {
+  min-height: 3em;
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--purple);
+  line-height: 1.5;
+}

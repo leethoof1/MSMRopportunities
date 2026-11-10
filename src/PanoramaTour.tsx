@@ -26,6 +26,7 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
   );
+  const [detail, setDetail] = useState<"preview" | "full">("preview");
   const [error, setError] = useState("");
   const [xrStatus, setXrStatus] = useState("");
   const current = scenes.find((scene) => scene.id === sceneId)!;
@@ -109,55 +110,142 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
       const facing = direction(active.initialU, 0.5);
       camera.rotation.set(-0.04, Math.atan2(-facing.x, -facing.z), 0, "YXZ");
     }
+    // Cache downloaded blobs, not GPU textures: revisits avoid another network
+    // transfer while inactive 8K textures can be released from graphics memory.
+    const downloads = new Map<string, Promise<Blob>>();
+    const abort = new AbortController();
+    const prefetchTimers = new Set<number>();
+    function download(url: string) {
+      let pending = downloads.get(url);
+      if (!pending) {
+        pending = fetch(url, { signal: abort.signal, cache: "force-cache" })
+          .then((response) => {
+            if (!response.ok)
+              throw new Error(`Panorama HTTP ${response.status}`);
+            return response.blob();
+          })
+          .catch((error) => {
+            downloads.delete(url);
+            throw error;
+          });
+        downloads.set(url, pending);
+      }
+      return pending;
+    }
+    async function textureFor(url: string) {
+      const blob = await download(url);
+      if (disposed) throw new Error("Tour closed");
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        return await loader.loadAsync(objectUrl);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    }
+    function fullImage(scene: TourScene) {
+      const pixels = element.clientWidth * Math.min(window.devicePixelRatio, 2);
+      const use8K =
+        renderer.capabilities.maxTextureSize >= 8192 &&
+        (renderer.xr.isPresenting || pixels > 900);
+      return !use8K && scene.imageMobile ? scene.imageMobile : scene.image;
+    }
+    function prefetchNeighbours(scene: TourScene, full: boolean) {
+      const network = (
+        navigator as Navigator & {
+          connection?: { saveData?: boolean; effectiveType?: string };
+        }
+      ).connection;
+      if (
+        network?.saveData ||
+        (full && /^(slow-2g|2g|3g)$/.test(network?.effectiveType ?? ""))
+      )
+        return;
+      const timer = window.setTimeout(
+        () => {
+          prefetchTimers.delete(timer);
+          if (disposed) return;
+          for (const link of scene.links) {
+            const neighbour = scenes.find((item) => item.id === link.target);
+            if (!neighbour) continue;
+            const url = full ? fullImage(neighbour) : neighbour.preview;
+            if (url) void download(url).catch(() => {});
+          }
+        },
+        full ? 600 : 0,
+      );
+      prefetchTimers.add(timer);
+    }
     function load(id: string) {
-      const destination = scenes.find((scene) => scene.id === id);
-      if (!destination) return;
+      const candidate = scenes.find((scene) => scene.id === id);
+      if (!candidate) return;
+      const destination: TourScene = candidate;
       const request = ++requestId;
       active = destination;
       ready = false;
+      sphere.visible = false;
       setSceneId(id);
       setStatus("loading");
+      setDetail("preview");
       setError("");
       if (hotspot.current) hotspot.current.style.visibility = "hidden";
       arrow.visible = false;
       orient();
-      loader.load(
-        destination.image,
-        (texture) => {
-          if (disposed || request !== requestId) {
-            texture.dispose();
-            return;
+      function show(texture: THREE.Texture, quality: "preview" | "full") {
+        if (disposed || request !== requestId) {
+          texture.dispose();
+          return false;
+        }
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.generateMipmaps = false;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.anisotropy = Math.min(
+          4,
+          renderer.capabilities.getMaxAnisotropy(),
+        );
+        material.map = texture;
+        material.needsUpdate = true;
+        loadedTexture?.dispose();
+        loadedTexture = texture;
+        sphere.visible = true;
+        const link = destination.links[0];
+        anchor.copy(direction(link.u, link.v)).multiplyScalar(8);
+        anchor.y += 1.6;
+        arrow.position.copy(anchor);
+        ready = true;
+        setDetail(quality);
+        setStatus("ready");
+        return true;
+      }
+      void (async () => {
+        let hasPreview = false;
+        if (destination.preview) {
+          try {
+            hasPreview = show(await textureFor(destination.preview), "preview");
+          } catch {
+            /* The detailed image can still recover a failed preview. */
           }
-          texture.colorSpace = THREE.SRGBColorSpace;
-          // Keep the supplied 8K source; avoid unnecessary mipmaps and extra GPU memory.
-          texture.generateMipmaps = false;
-          texture.minFilter = THREE.LinearFilter;
-          texture.magFilter = THREE.LinearFilter;
-          texture.anisotropy = Math.min(
-            4,
-            renderer.capabilities.getMaxAnisotropy(),
-          );
-          material.map = texture;
-          material.needsUpdate = true;
-          loadedTexture?.dispose();
-          loadedTexture = texture;
-          sphere.visible = true;
-          const link = active.links[0];
-          anchor.copy(direction(link.u, link.v)).multiplyScalar(8);
-          anchor.y += 1.6;
-          arrow.position.copy(anchor);
-          ready = true;
-          setStatus("ready");
-        },
-        undefined,
-        () => {
+        }
+        if (disposed || request !== requestId) return;
+        // Preview is interactive already. Upgrade without resetting the camera.
+        prefetchNeighbours(destination, false);
+        try {
+          if (show(await textureFor(fullImage(destination)), "full"))
+            prefetchNeighbours(destination, true);
+        } catch {
           if (disposed || request !== requestId) return;
-          setStatus("error");
-          setError(
-            "Не удалось загрузить панораму. Проверь подключение и попробуй ещё раз.",
-          );
-        },
-      );
+          if (hasPreview) {
+            setError(
+              "Пока доступно быстрое превью. Повторить загрузку чёткого изображения?",
+            );
+          } else {
+            setStatus("error");
+            setError(
+              "Не удалось загрузить панораму. Проверь подключение и попробуй ещё раз.",
+            );
+          }
+        }
+      })();
     }
     navigate.current = load;
     resetView.current = orient;
@@ -233,6 +321,10 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
       });
       world.add(controller);
     }
+    function enterVR() {
+      load(active.id);
+    }
+    renderer.xr.addEventListener("sessionstart", enterVR);
     let vrButton: HTMLElement | null = null;
     if (navigator.xr && window.isSecureContext) {
       navigator.xr
@@ -284,6 +376,10 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
       ready = false;
       navigate.current = () => {};
       resetView.current = () => {};
+      abort.abort();
+      for (const timer of prefetchTimers) window.clearTimeout(timer);
+      downloads.clear();
+      renderer.xr.removeEventListener("sessionstart", enterVR);
       observer.disconnect();
       renderer.setAnimationLoop(null);
       const session = renderer.xr.getSession();
@@ -333,6 +429,7 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
         aria-label={`Панорама 360°: ${place.name}`}
         data-panorama-state={status}
         data-tour-scene={sceneId}
+        data-panorama-detail={detail}
         aria-busy={status === "loading"}
       >
         <button
@@ -354,6 +451,11 @@ export default function PanoramaTour({ place, onCatalogue }: Props) {
           </div>
         )}
       </div>
+      <p className="tour-detail-status" role="status">
+        {status === "ready" && detail === "preview" && !error
+          ? "Повышаем чёткость… Можно осматриваться и переходить дальше."
+          : "\u00a0"}
+      </p>
       {error && (
         <div role="status" className="tour-error">
           <p>{error}</p>

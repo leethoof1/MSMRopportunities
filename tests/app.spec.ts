@@ -355,9 +355,9 @@ test("failed Neva photo can be reopened after a network error", async ({
   page,
 }) => {
   test.setTimeout(60_000);
-  await page.route("**/panoramas/neva-corridor.jpg", (route) => route.abort(), {
-    times: 1,
-  });
+  await page.route("**/panoramas/neva-corridor-*.webp", (route) =>
+    route.abort(),
+  );
   await page.goto("/?place=neva");
   await page.getByRole("button", { name: "Смотреть 360°" }).click();
   const dialog = page.getByRole("dialog");
@@ -367,6 +367,7 @@ test("failed Neva photo can be reopened after a network error", async ({
     ),
   ).toBeVisible();
   await expect(dialog.getByText("Загружаем панораму…")).toHaveCount(0);
+  await page.unroute("**/panoramas/neva-corridor-*.webp");
   await dialog.getByRole("button", { name: "Закрыть окно" }).click();
   await page.getByRole("button", { name: "Смотреть 360°" }).click();
   await expect(
@@ -418,10 +419,86 @@ test("Neva tour starts at the entrance and doorway arrows work both ways", async
     timeout: 20000,
   });
   await expect(forward).toBeVisible();
-  const corridor = await page.request.get("/panoramas/neva-corridor.jpg");
-  const room = await page.request.get("/panoramas/neva-room.jpg");
-  // Check that the originals, rather than chat thumbnails, are actually served.
-  expect((await corridor.body()).length).toBeGreaterThan(5_000_000);
-  expect((await room.body()).length).toBeGreaterThan(8_000_000);
+  await expect(scene).toHaveAttribute("data-panorama-detail", "full");
   expect(errors).toEqual([]);
+});
+
+test("Neva previews remain interactive during slow downloads, then upgrade and reuse cached rooms", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(120_000);
+  const requests: string[] = [];
+  // Ignore development StrictMode's aborted mount; count completed transfers.
+  page.on("requestfinished", (request) => {
+    if (request.url().includes("/panoramas/")) requests.push(request.url());
+  });
+  let release!: () => void;
+  const slowDownload = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(/panoramas\/neva-.*-(4096|8192)\.webp/, async (route) => {
+    await slowDownload;
+    await route.continue().catch(() => {});
+  });
+  try {
+    await page.goto("/?place=neva");
+    await page.getByRole("button", { name: "Смотреть 360°" }).click();
+    const dialog = page.getByRole("dialog");
+    const scene = dialog.locator(".vr-scene");
+    // Large images are held indefinitely; the little preview must allow a visit now.
+    await expect(scene).toHaveAttribute("data-panorama-state", "ready");
+    await expect(scene).toHaveAttribute("data-panorama-detail", "preview");
+    await dialog
+      .getByRole("button", { name: "В пространство возможностей", exact: true })
+      .click();
+    await expect(scene).toHaveAttribute("data-tour-scene", "room");
+    await expect(scene).toHaveAttribute("data-panorama-state", "ready");
+    await expect(scene).toHaveAttribute("data-panorama-detail", "preview");
+    const canvas = scene.locator("canvas");
+    await canvas.focus();
+    // Turn to the room's exit and ensure sharpening does not reset the view.
+    for (let i = 0; i < 24; i++) await page.keyboard.press("ArrowLeft");
+    await canvas.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    const back = dialog.getByRole("button", {
+      name: "Обратно в коридор",
+      exact: true,
+    });
+    await expect(back).toBeVisible();
+    const before = (await back.boundingBox())!;
+    release();
+    await expect(scene).toHaveAttribute("data-panorama-detail", "full", {
+      timeout: 20000,
+    });
+    await expect(scene).toHaveAttribute("data-tour-scene", "room");
+    const after = (await back.boundingBox())!;
+    expect(Math.abs(after.x - before.x)).toBeLessThan(2);
+    expect(Math.abs(after.y - before.y)).toBeLessThan(2);
+    await back.click();
+    await expect(scene).toHaveAttribute("data-tour-scene", "entrance");
+    await expect(scene).toHaveAttribute("data-panorama-detail", "full", {
+      timeout: 20000,
+    });
+    // Revisit again: each image is transferred only once per open tour.
+    await dialog
+      .getByRole("button", { name: "Пространство возможностей", exact: true })
+      .click();
+    await expect(scene).toHaveAttribute("data-panorama-detail", "full");
+    expect(requests.some((url) => url.endsWith(".jpg"))).toBe(false);
+    const fullSize = testInfo.project.name === "mobile" ? "4096" : "8192";
+    for (const room of ["corridor", "room"]) {
+      expect(
+        requests.filter((url) => url.endsWith(`neva-${room}-1024.webp`)),
+      ).toHaveLength(1);
+      expect(
+        requests.filter((url) => url.endsWith(`neva-${room}-${fullSize}.webp`)),
+      ).toHaveLength(1);
+    }
+  } finally {
+    release();
+  }
 });
