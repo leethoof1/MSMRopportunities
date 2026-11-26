@@ -41,6 +41,25 @@ jobs:
         env:
           BASE_PATH: /
           VITE_YANDEX_TILES_API_KEY: ${{ secrets.YANDEX_MAPS_API_KEY }}
+      - name: Validate Yandex Constructor import
+        run: |
+          python3 - <<'PY'
+          import collections
+          import json
+          import xml.etree.ElementTree as ET
+          ns = {"k": "http://www.opengis.net/kml/2.2"}
+          items = ET.parse("dist/clubs-moskovsky.kml").findall(".//k:Placemark", ns)
+          source = json.load(open("src/geocoded-places.json", encoding="utf-8"))
+          actual = []
+          for item in items:
+              assert item.findtext("k:name", namespaces=ns)
+              lon, lat, altitude = map(float, item.findtext("k:Point/k:coordinates", namespaces=ns).split(","))
+              assert 30.17 < lon < 30.46 and 59.77 < lat < 59.94
+              actual.append((lat, lon))
+          expected = [tuple(item["coordinates"]) for item in source.values()]
+          assert collections.Counter(actual) == collections.Counter(expected)
+          print("Valid KML import:", len(items), "clubs; coordinates match the site")
+          PY
       - name: Verify standalone map widget
         run: |
           if command -v google-chrome >/dev/null 2>&1; then
