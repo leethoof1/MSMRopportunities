@@ -41,6 +41,15 @@ jobs:
         env:
           BASE_PATH: /
           VITE_YANDEX_TILES_API_KEY: ${{ secrets.YANDEX_MAPS_API_KEY }}
+      - name: Verify standalone map widget
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then
+            export CHROMIUM_PATH="$(command -v google-chrome)"
+          else
+            npx playwright install --with-deps chromium
+            export CHROMIUM_PATH="$(node --input-type=module -e "import { chromium } from '@playwright/test'; console.log(chromium.executablePath())")"
+          fi
+          npx playwright test tests/embed-map.spec.ts --project=desktop --project=mobile --workers=1
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
