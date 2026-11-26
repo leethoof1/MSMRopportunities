@@ -28,13 +28,20 @@ test("standalone map shows 22 clubs, contacts and touch-sized controls", async (
 
 test("map works in another application's iframe and the main site still opens normally", async ({ page }) => {
   // A different host represents an external kiosk page.
+  page.on("pageerror", error => console.log("EMBED_PAGE_ERROR", error.message));
+  page.on("console", message => { if(message.type() === "error") console.log("EMBED_CONSOLE_ERROR", message.text()); });
+  page.on("requestfailed", request => console.log("EMBED_REQUEST_FAILED", request.url(), request.failure()?.errorText));
   await page.route("http://localhost:5173/kiosk-parent/**", route => route.fulfill({
     contentType: "text/html",
     body: '<!doctype html><html><body style="margin:0"><iframe title="Карта клубов" src="http://127.0.0.1:5173/?embed=map" style="display:block;width:100vw;height:100vh;border:0"></iframe></body></html>'
   }));
   await page.goto("http://localhost:5173/kiosk-parent/");
   const widget = page.frameLocator('iframe[title="Карта клубов"]');
-  await expect(widget.locator(".place-pin")).toHaveCount(22);
+  try { await expect(widget.locator(".place-pin")).toHaveCount(22); }
+  catch (error) {
+    console.log("EMBED_FRAMES", JSON.stringify(await Promise.all(page.frames().map(async frame => ({url:frame.url(),body:await frame.locator("body").innerText().catch(()=>"(unavailable)")})))));
+    throw error;
+  }
   await expect(widget.locator(".site-header")).toHaveCount(0);
   await widget.locator('.leaflet-marker-icon[title="Нева"]').click();
   await expect(widget.getByRole("region", { name: "Карточка клуба: Нева" })).toBeVisible();
